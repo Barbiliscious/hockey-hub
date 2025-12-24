@@ -8,22 +8,52 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
-        secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-        outline: "text-foreground",
+        default:
+          "border-transparent bg-primary text-primary-foreground",
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground",
+        destructive:
+          "border-transparent bg-destructive text-destructive-foreground",
+        outline:
+          "text-foreground border-border",
+        available:
+          "border-transparent bg-success/15 text-success border border-success/30",
+        unavailable:
+          "border-transparent bg-destructive/15 text-destructive border border-destructive/30",
+        unsure:
+          "border-transparent bg-warning/15 text-warning-foreground border border-warning/30",
+        starter:
+          "border-transparent bg-accent text-accent-foreground",
+        bench:
+          "border-transparent bg-muted text-muted-foreground",
+        player:
+          "border-transparent bg-primary/15 text-primary border border-primary/30",
+        coach:
+          "border-transparent bg-secondary text-secondary-foreground",
+        admin:
+          "border-transparent bg-accent text-accent-foreground",
+        scheduled:
+          "border-transparent bg-muted text-muted-foreground",
+        finalised:
+          "border-transparent bg-success/15 text-success border border-success/30",
+        pending:
+          "border-transparent bg-warning/15 text-warning-foreground border border-warning/30",
       },
     },
     defaultVariants: {
       variant: "default",
     },
-  },
+  }
 );
 
-export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof badgeVariants> {}
 
 function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+  return (
+    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+  );
 }
 
 export { Badge, badgeVariants };
