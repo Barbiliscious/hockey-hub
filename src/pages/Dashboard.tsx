@@ -1,6 +1,14 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Calendar,
   MapPin,
@@ -10,12 +18,19 @@ import {
 import { mockGames } from "@/lib/mockData";
 
 const Dashboard = () => {
+  const [gameFilter, setGameFilter] = useState<string>("all");
+  
   const upcomingGames = mockGames
     .filter((game) => game.status === "SCHEDULED")
     .slice(0, 5);
 
   const myTeamGames = upcomingGames.filter((game) => game.isClubTeamGame);
-  const allGames = upcomingGames;
+  
+  const filteredGames = gameFilter === "all" 
+    ? upcomingGames 
+    : gameFilter === "club" 
+    ? upcomingGames.filter((game) => game.isClubTeamGame)
+    : upcomingGames.filter((game) => !game.isClubTeamGame);
 
   // Mock user
   const user = {
@@ -39,8 +54,8 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-[7fr_3fr] gap-4">
         {/* Left Column */}
         <div className="space-y-4">
-          {/* Club Banner */}
-          <Card className="bg-primary text-primary-foreground min-h-[140px]">
+          {/* Club Banner - matches calendar height */}
+          <Card className="bg-primary text-primary-foreground h-[220px]">
             <CardContent className="flex items-center justify-center h-full py-8">
               <div className="text-center">
                 <h2 className="text-xl font-bold mb-2">{user.club}</h2>
@@ -52,15 +67,27 @@ const Dashboard = () => {
           {/* All Upcoming Games */}
           <Card className="bg-primary text-primary-foreground">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold text-primary-foreground">
-                All upcoming games
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-primary-foreground">
+                  All upcoming games
+                </CardTitle>
+                <Select value={gameFilter} onValueChange={setGameFilter}>
+                  <SelectTrigger className="w-[120px] h-8 bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground text-xs">
+                    <SelectValue placeholder="Filter" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border-border">
+                    <SelectItem value="all">All games</SelectItem>
+                    <SelectItem value="club">Club games</SelectItem>
+                    <SelectItem value="other">Other games</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent className="space-y-2">
-              {allGames.length === 0 ? (
+              {filteredGames.length === 0 ? (
                 <p className="text-primary-foreground/70 text-sm">No upcoming games</p>
               ) : (
-                allGames.slice(0, 4).map((game) => (
+                filteredGames.slice(0, 4).map((game) => (
                   <Link
                     key={game.id}
                     to={`/games/${game.id}`}
