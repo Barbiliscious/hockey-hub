@@ -9,22 +9,13 @@ import {
   Users,
   MessageCircle,
   User,
-  Settings,
+  LogOut,
   Menu,
   X,
-  LogOut,
-  ChevronDown,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 const navItems = [
-  { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { path: "/dashboard", label: "Home", icon: LayoutDashboard },
   { path: "/games", label: "Games", icon: Calendar },
   { path: "/roster", label: "Roster", icon: Users },
   { path: "/chat", label: "Chat", icon: MessageCircle },
@@ -43,6 +34,7 @@ const AppLayout = () => {
     role: "PLAYER" as const,
     club: "Grampians Hockey Club",
     team: "Div2 Men",
+    initials: "JW",
   };
 
   const handleLogout = () => {
@@ -51,103 +43,44 @@ const AppLayout = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-md">
-        <div className="container mx-auto px-4">
-          <div className="flex h-16 items-center justify-between">
+      {/* Top Header Bar - Blue Gradient */}
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-primary via-primary to-blue-500">
+        <div className="px-4 lg:px-6">
+          <div className="flex h-14 items-center justify-between">
             {/* Logo */}
             <Link to="/dashboard" className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-                <span className="font-display text-accent-foreground text-lg">
-                  G
-                </span>
+              <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                <span className="font-display text-white text-xl">G</span>
               </div>
-              <div className="hidden sm:block">
-                <p className="font-display text-lg text-foreground leading-none">
-                  GRAMPIANS
-                </p>
-                <p className="text-xs text-muted-foreground">Hockey Club</p>
-              </div>
+              <span className="font-display text-xl text-white tracking-wide hidden sm:block">
+                GRAMPIANS HOCKEY
+              </span>
             </Link>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-1">
-              {navItems.map((item) => {
-                const isActive = location.pathname === item.path;
-                const Icon = item.icon;
-                return (
-                  <Link key={item.path} to={item.path}>
-                    <Button
-                      variant={isActive ? "secondary" : "ghost"}
-                      size="sm"
-                      className={cn(
-                        "gap-2",
-                        isActive && "bg-accent/10 text-accent"
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {item.label}
-                    </Button>
-                  </Link>
-                );
-              })}
-            </nav>
+            {/* Right side - User info & mobile toggle */}
+            <div className="flex items-center gap-3">
+              {/* Role Badge */}
+              <Badge className="bg-white/20 text-white border-0 hidden sm:flex">
+                {user.role}
+              </Badge>
 
-            {/* User Menu & Mobile Toggle */}
-            <div className="flex items-center gap-2">
-              {/* User dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="gap-2">
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                      <span className="text-sm font-semibold text-primary-foreground">
-                        {user.name.charAt(0)}
-                      </span>
-                    </div>
-                    <span className="hidden sm:block text-sm font-medium">
-                      {user.name}
-                    </span>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <div className="px-2 py-2">
-                    <p className="font-medium text-sm">{user.name}</p>
-                    <p className="text-xs text-muted-foreground">{user.email}</p>
-                    <div className="flex gap-2 mt-2">
-                      <Badge variant="player">{user.role}</Badge>
-                      <Badge variant="outline">{user.team}</Badge>
-                    </div>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile" className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      Profile
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings" className="cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleLogout}
-                    className="text-destructive cursor-pointer"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {/* User Avatar */}
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-2 border-white/30">
+                  <span className="text-sm font-semibold text-white">
+                    {user.initials}
+                  </span>
+                </div>
+                <span className="text-sm font-medium text-white hidden sm:block">
+                  {user.name}
+                </span>
+              </div>
 
               {/* Mobile menu toggle */}
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden"
+                className="lg:hidden text-white hover:bg-white/10"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               >
                 {isMobileMenuOpen ? (
@@ -159,45 +92,115 @@ const AppLayout = () => {
             </div>
           </div>
         </div>
-
-        {/* Mobile Navigation */}
-        {isMobileMenuOpen && (
-          <nav className="md:hidden border-t border-border bg-card animate-slide-down">
-            <div className="container mx-auto px-4 py-3 space-y-1">
-              {navItems.map((item) => {
-                const isActive = location.pathname === item.path;
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <Button
-                      variant={isActive ? "secondary" : "ghost"}
-                      className={cn(
-                        "w-full justify-start gap-3",
-                        isActive && "bg-accent/10 text-accent"
-                      )}
-                    >
-                      <Icon className="h-5 w-5" />
-                      {item.label}
-                    </Button>
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-        )}
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
-        <Outlet />
-      </main>
+      <div className="flex">
+        {/* Desktop Sidebar */}
+        <aside className="hidden lg:flex flex-col w-64 min-h-[calc(100vh-3.5rem)] bg-card border-r border-border">
+          <nav className="flex-1 p-4 space-y-1">
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path || 
+                (item.path === "/games" && location.pathname.startsWith("/games"));
+              const Icon = item.icon;
+              return (
+                <Link key={item.path} to={item.path}>
+                  <button
+                    className={cn(
+                      "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <Icon className={cn("h-5 w-5", isActive && "text-primary")} />
+                    {item.label}
+                  </button>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Logout at bottom */}
+          <div className="p-4 border-t border-border">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-all"
+            >
+              <LogOut className="h-5 w-5" />
+              Log out
+            </button>
+          </div>
+        </aside>
+
+        {/* Mobile Sidebar Overlay */}
+        {isMobileMenuOpen && (
+          <div className="fixed inset-0 z-40 lg:hidden">
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            <aside className="absolute left-0 top-0 bottom-0 w-72 bg-card animate-slide-in-right">
+              <div className="p-4 border-b border-border">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-primary">
+                      {user.initials}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{user.name}</p>
+                    <p className="text-xs text-muted-foreground">{user.team}</p>
+                  </div>
+                </div>
+              </div>
+
+              <nav className="flex-1 p-4 space-y-1">
+                {navItems.map((item) => {
+                  const isActive = location.pathname === item.path;
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <button
+                        className={cn(
+                          "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                      >
+                        <Icon className={cn("h-5 w-5", isActive && "text-primary")} />
+                        {item.label}
+                      </button>
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              <div className="p-4 border-t border-border">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-all"
+                >
+                  <LogOut className="h-5 w-5" />
+                  Log out
+                </button>
+              </div>
+            </aside>
+          </div>
+        )}
+
+        {/* Main Content */}
+        <main className="flex-1 min-h-[calc(100vh-3.5rem)] p-4 lg:p-6">
+          <Outlet />
+        </main>
+      </div>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-md md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border lg:hidden">
         <div className="flex justify-around py-2">
           {navItems.slice(0, 5).map((item) => {
             const isActive = location.pathname === item.path;
@@ -209,8 +212,8 @@ const AppLayout = () => {
                 className={cn(
                   "flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg transition-colors",
                   isActive
-                    ? "text-accent"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "text-primary"
+                    : "text-muted-foreground"
                 )}
               >
                 <Icon className="h-5 w-5" />
@@ -222,7 +225,7 @@ const AppLayout = () => {
       </nav>
 
       {/* Spacer for mobile bottom nav */}
-      <div className="h-20 md:h-0" />
+      <div className="h-16 lg:h-0" />
     </div>
   );
 };

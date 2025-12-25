@@ -8,15 +8,15 @@ const cardVariants = cva(
   {
     variants: {
       variant: {
-        default: "border-border shadow-sm",
+        default: "border-border shadow-[var(--shadow-card)]",
         elevated: "border-border shadow-md hover:shadow-lg",
         interactive:
-          "border-border shadow-sm hover:shadow-md hover:-translate-y-0.5 cursor-pointer",
+          "border-border shadow-[var(--shadow-card)] hover:shadow-md hover:-translate-y-0.5 cursor-pointer",
         ghost: "border-transparent bg-transparent shadow-none",
         glass: "bg-card/80 backdrop-blur-md border-border/50",
         gradient:
           "border-0 bg-gradient-to-br from-card via-card to-muted/50 shadow-md",
-        game: "border-border shadow-sm hover:shadow-md hover:border-accent/50 transition-all",
+        game: "border-border shadow-[var(--shadow-card)] hover:shadow-md hover:border-primary/30 transition-all",
       },
     },
     defaultVariants: {

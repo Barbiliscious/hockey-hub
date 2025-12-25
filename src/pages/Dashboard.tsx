@@ -10,268 +10,278 @@ import {
   Users,
   Trophy,
   TrendingUp,
+  Play,
+  CalendarPlus,
+  Eye,
 } from "lucide-react";
 import { mockGames, mockPlayers } from "@/lib/mockData";
 
 const Dashboard = () => {
   const upcomingGames = mockGames
     .filter((game) => game.isClubTeamGame && game.status === "SCHEDULED")
-    .slice(0, 3);
+    .slice(0, 4);
 
   const nextGame = upcomingGames[0];
 
-  return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Welcome Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl md:text-4xl text-foreground">
-            WELCOME BACK, JAMES
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Grampians Hockey Club • Div2 Men
-          </p>
-        </div>
-        <Badge variant="player" className="w-fit">
-          Player
-        </Badge>
-      </div>
+  // Mock user
+  const user = {
+    name: "James",
+    team: "Div2 Men",
+    club: "Grampians Hockey Club",
+  };
 
-      {/* Next Game Card */}
-      {nextGame && (
-        <Card variant="gradient" className="overflow-hidden">
-          <div className="p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">
-                  Next Match
-                </p>
-                <Badge variant="scheduled">{nextGame.grade}</Badge>
+  return (
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
+      {/* Grid Layout like reference */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Welcome + Agenda */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Welcome Card */}
+          <Card className="shadow-card overflow-hidden">
+            <CardContent className="p-6">
+              <div className="text-center mb-6">
+                <h1 className="text-2xl font-semibold text-foreground mb-2">
+                  Good morning, {user.name}!
+                </h1>
+                <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border-4 border-primary/20">
+                  <span className="text-2xl font-bold text-primary">
+                    {user.name.charAt(0)}
+                  </span>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">
-                  {new Date(nextGame.date).toLocaleDateString("en-AU", {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
+
+              {/* Today's Agenda / Upcoming Games */}
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-4">
+                  Your upcoming games:
+                </h3>
+                <div className="space-y-3">
+                  {upcomingGames.map((game) => (
+                    <div
+                      key={game.id}
+                      className="flex items-center justify-between py-3 border-b border-border last:border-0"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="text-sm font-medium text-foreground">
+                          {game.homeTeamName} vs {game.awayTeamName}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {new Date(game.date).toLocaleDateString("en-AU", {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                          })}{" "}
+                          • {game.startTime}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Link to={`/games/${game.id}`}>
+                          <Button size="sm" variant="default">
+                            View
+                          </Button>
+                        </Link>
+                        <Button size="sm" variant="outline">
+                          Set Availability
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Bottom Row - Calendar Preview + Insights */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Mini Calendar Preview */}
+            <Card className="shadow-card">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold">Calendar</CardTitle>
+                  <Link to="/games">
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Calendar className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+                <p className="text-sm text-primary font-medium">
+                  {new Date().toLocaleDateString("en-AU", {
+                    month: "long",
+                    year: "numeric",
                   })}
                 </p>
-                <p className="font-semibold text-foreground">
-                  {nextGame.startTime}
-                </p>
-              </div>
-            </div>
+              </CardHeader>
+              <CardContent className="pb-4">
+                {/* Simple week view */}
+                <div className="grid grid-cols-7 gap-1 text-center text-xs">
+                  {["M", "T", "W", "T", "F", "S", "S"].map((day, i) => (
+                    <div key={i} className="py-1 text-muted-foreground font-medium">
+                      {day}
+                    </div>
+                  ))}
+                  {Array.from({ length: 35 }, (_, i) => {
+                    const dayNum = i - 2; // offset for month start
+                    const isToday = dayNum === new Date().getDate();
+                    const hasGame = [28, 4].includes(dayNum);
+                    return (
+                      <div
+                        key={i}
+                        className={`py-1.5 rounded-full text-sm ${
+                          dayNum < 1 || dayNum > 31
+                            ? "text-transparent"
+                            : isToday
+                            ? "bg-primary text-primary-foreground font-semibold"
+                            : hasGame
+                            ? "bg-primary/10 text-primary font-medium"
+                            : "text-foreground"
+                        }`}
+                      >
+                        {dayNum > 0 && dayNum <= 31 ? dayNum : ""}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
 
-            <div className="text-center py-6">
-              <p className="font-display text-2xl md:text-3xl text-foreground">
-                {nextGame.homeTeamName}
-              </p>
-              <p className="text-muted-foreground text-lg my-2">vs</p>
-              <p className="font-display text-2xl md:text-3xl text-foreground">
-                {nextGame.awayTeamName}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground mb-6">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                {nextGame.location}
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                {nextGame.startTime}
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link to={`/games/${nextGame.id}`} className="flex-1">
-                <Button variant="default" className="w-full">
-                  View Game Details
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Button variant="success" className="flex-1">
-                Mark Available
-              </Button>
-            </div>
+            {/* Stats / Insights */}
+            <Card className="shadow-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold">Insights</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Games this season</p>
+                      <p className="text-sm text-muted-foreground">you played in</p>
+                    </div>
+                    <span className="text-4xl font-bold text-primary">8</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Goals scored</p>
+                      <p className="text-sm text-muted-foreground">this season</p>
+                    </div>
+                    <span className="text-4xl font-bold text-primary">12</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </Card>
-      )}
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard
-          icon={<Calendar className="h-5 w-5" />}
-          label="Upcoming Games"
-          value={upcomingGames.length.toString()}
-        />
-        <StatsCard
-          icon={<Users className="h-5 w-5" />}
-          label="Team Members"
-          value={mockPlayers.length.toString()}
-        />
-        <StatsCard
-          icon={<Trophy className="h-5 w-5" />}
-          label="Season Goals"
-          value="12"
-        />
-        <StatsCard
-          icon={<TrendingUp className="h-5 w-5" />}
-          label="Games Played"
-          value="8"
-        />
-      </div>
-
-      {/* Upcoming Games List */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-xl text-foreground">
-            UPCOMING GAMES
-          </h2>
-          <Link to="/games">
-            <Button variant="ghost" size="sm">
-              View All
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </Link>
         </div>
 
-        <div className="space-y-3">
-          {upcomingGames.map((game, index) => (
-            <GameListItem key={game.id} game={game} index={index} />
-          ))}
-        </div>
-      </div>
+        {/* Right Column - Quick Actions + Activity */}
+        <div className="space-y-4">
+          {/* Quick Action Cards */}
+          <QuickActionCard
+            icon={<Play className="h-5 w-5" />}
+            title="View Next Game"
+            onClick={() => {}}
+            to={nextGame ? `/games/${nextGame.id}` : "/games"}
+          />
+          <QuickActionCard
+            icon={<Users className="h-5 w-5" />}
+            title="View Team Roster"
+            to="/roster"
+          />
+          <QuickActionCard
+            icon={<CalendarPlus className="h-5 w-5" />}
+            title="All Fixtures"
+            to="/games"
+          />
 
-      {/* Recent Activity */}
-      <div>
-        <h2 className="font-display text-xl text-foreground mb-4">
-          RECENT ACTIVITY
-        </h2>
-        <Card variant="default">
-          <CardContent className="p-4">
-            <div className="space-y-4">
-              <ActivityItem
-                icon="🏒"
-                title="Team Selection Updated"
-                description="You've been selected as a starter for the upcoming game."
-                time="2 hours ago"
-              />
-              <ActivityItem
-                icon="📊"
-                title="Stats Published"
-                description="Match stats from the last game are now available."
-                time="1 day ago"
-              />
-              <ActivityItem
-                icon="💬"
-                title="New Message"
-                description="Coach posted in the club chat."
-                time="2 days ago"
-              />
-            </div>
-          </CardContent>
-        </Card>
+          {/* Recent Activity / Notifications */}
+          <Card className="shadow-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold">Notifications</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <NotificationItem
+                  avatar="C"
+                  name="Coach"
+                  message="posted lineup for Saturday"
+                  highlight="Div2 vs Tigers"
+                  actionLabel="View"
+                />
+                <NotificationItem
+                  avatar="A"
+                  name="Admin"
+                  message="opened voting for"
+                  highlight="Last week's game"
+                  actionLabel="Vote"
+                />
+                <NotificationItem
+                  avatar="T"
+                  name="Team"
+                  message="new message in"
+                  highlight="Club Chat"
+                  actionLabel="Open"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
 };
 
-interface StatsCardProps {
+interface QuickActionCardProps {
   icon: React.ReactNode;
-  label: string;
-  value: string;
+  title: string;
+  onClick?: () => void;
+  to?: string;
 }
 
-const StatsCard = ({ icon, label, value }: StatsCardProps) => (
-  <Card variant="interactive">
-    <CardContent className="p-4">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-accent/10 text-accent flex items-center justify-center">
+const QuickActionCard = ({ icon, title, onClick, to }: QuickActionCardProps) => {
+  const content = (
+    <Card className="shadow-card hover:shadow-lg transition-shadow cursor-pointer group">
+      <CardContent className="p-4 flex items-center gap-4">
+        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
           {icon}
         </div>
-        <div>
-          <p className="font-display text-2xl text-foreground">{value}</p>
-          <p className="text-xs text-muted-foreground">{label}</p>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-);
-
-interface GameListItemProps {
-  game: (typeof mockGames)[0];
-  index: number;
-}
-
-const GameListItem = ({ game, index }: GameListItemProps) => (
-  <Link to={`/games/${game.id}`}>
-    <Card
-      variant="game"
-      className="animate-slide-up"
-      style={{ animationDelay: `${index * 0.1}s` }}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="text-center min-w-[50px]">
-              <p className="text-xs text-muted-foreground">
-                {new Date(game.date).toLocaleDateString("en-AU", {
-                  weekday: "short",
-                })}
-              </p>
-              <p className="font-display text-lg text-foreground">
-                {new Date(game.date).getDate()}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {new Date(game.date).toLocaleDateString("en-AU", {
-                  month: "short",
-                })}
-              </p>
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">
-                {game.homeTeamName} vs {game.awayTeamName}
-              </p>
-              <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {game.startTime}
-                </span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  {game.location}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="available">Available</Badge>
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-          </div>
-        </div>
+        <span className="font-medium text-foreground">{title}</span>
       </CardContent>
     </Card>
-  </Link>
-);
+  );
 
-interface ActivityItemProps {
-  icon: string;
-  title: string;
-  description: string;
-  time: string;
+  if (to) {
+    return <Link to={to}>{content}</Link>;
+  }
+  return <div onClick={onClick}>{content}</div>;
+};
+
+interface NotificationItemProps {
+  avatar: string;
+  name: string;
+  message: string;
+  highlight: string;
+  actionLabel: string;
 }
 
-const ActivityItem = ({ icon, title, description, time }: ActivityItemProps) => (
-  <div className="flex items-start gap-3">
-    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-lg">
-      {icon}
+const NotificationItem = ({
+  avatar,
+  name,
+  message,
+  highlight,
+  actionLabel,
+}: NotificationItemProps) => (
+  <div className="flex items-center gap-3 py-2">
+    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground">
+      {avatar}
     </div>
     <div className="flex-1 min-w-0">
-      <p className="font-medium text-foreground text-sm">{title}</p>
-      <p className="text-muted-foreground text-sm truncate">{description}</p>
+      <p className="text-sm">
+        <span className="font-medium">{name}</span>{" "}
+        <span className="text-muted-foreground">{message}</span>{" "}
+        <span className="text-primary font-medium">{highlight}</span>
+      </p>
     </div>
-    <p className="text-xs text-muted-foreground whitespace-nowrap">{time}</p>
+    <Button size="sm" variant="default">
+      {actionLabel}
+    </Button>
   </div>
 );
 
