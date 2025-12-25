@@ -189,10 +189,12 @@ const GameDetail = () => {
       {/* Actions */}
       {game.isClubTeamGame && (
         <div className="flex gap-3">
-          <Button variant="default" className="flex-1">
-            <Users className="h-4 w-4 mr-2" />
-            View Lineup
-          </Button>
+          <Link to={`/games/${id}/lineup`} className="flex-1">
+            <Button variant="default" className="w-full">
+              <Users className="h-4 w-4 mr-2" />
+              View Lineup
+            </Button>
+          </Link>
           {game.status === "FINALISED" && (
             <Button variant="secondary" className="flex-1">
               Vote Now

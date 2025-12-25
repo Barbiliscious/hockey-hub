@@ -12,6 +12,7 @@ import Pending from "./pages/Pending";
 import Dashboard from "./pages/Dashboard";
 import Games from "./pages/Games";
 import GameDetail from "./pages/GameDetail";
+import Lineup from "./pages/Lineup";
 import Roster from "./pages/Roster";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/games" element={<Games />} />
             <Route path="/games/:id" element={<GameDetail />} />
+            <Route path="/games/:id/lineup" element={<Lineup />} />
             <Route path="/roster" element={<Roster />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/profile" element={<Profile />} />
