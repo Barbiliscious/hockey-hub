@@ -96,6 +96,51 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-4">
+          {/* Calendar */}
+          <Card className="bg-primary text-primary-foreground">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold text-primary-foreground flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Calendar
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Simple week view */}
+              <div className="grid grid-cols-7 gap-1 text-center text-xs">
+                {["M", "T", "W", "T", "F", "S", "S"].map((day, i) => (
+                  <div key={i} className="py-1 text-primary-foreground/70 font-medium">
+                    {day}
+                  </div>
+                ))}
+                {Array.from({ length: 35 }, (_, i) => {
+                  const dayNum = i - 2;
+                  const isToday = dayNum === new Date().getDate();
+                  const hasGame = [28, 4].includes(dayNum);
+                  return (
+                    <div
+                      key={i}
+                      className={`py-1.5 rounded-full text-sm ${
+                        dayNum < 1 || dayNum > 31
+                          ? "text-transparent"
+                          : isToday
+                          ? "bg-primary-foreground text-primary font-semibold"
+                          : hasGame
+                          ? "bg-primary-foreground/20 text-primary-foreground font-medium"
+                          : "text-primary-foreground"
+                      }`}
+                    >
+                      {dayNum > 0 && dayNum <= 31 ? dayNum : ""}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* My Team Games */}
           <Card className="bg-primary text-primary-foreground">
             <CardHeader className="pb-2">
@@ -121,7 +166,7 @@ const Dashboard = () => {
                         {game.grade}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-primary-foreground/70">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-primary-foreground/70">
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         {new Date(game.date).toLocaleDateString("en-AU", {
@@ -145,47 +190,6 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
-
-        {/* Right Column - Calendar */}
-        <Card className="bg-primary text-primary-foreground h-fit">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-primary-foreground flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Calendar
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Simple week view */}
-            <div className="grid grid-cols-7 gap-1 text-center text-xs">
-              {["M", "T", "W", "T", "F", "S", "S"].map((day, i) => (
-                <div key={i} className="py-1 text-primary-foreground/70 font-medium">
-                  {day}
-                </div>
-              ))}
-              {Array.from({ length: 35 }, (_, i) => {
-                const dayNum = i - 2;
-                const isToday = dayNum === new Date().getDate();
-                const hasGame = [28, 4].includes(dayNum);
-                return (
-                  <div
-                    key={i}
-                    className={`py-1.5 rounded-full text-sm ${
-                      dayNum < 1 || dayNum > 31
-                        ? "text-transparent"
-                        : isToday
-                        ? "bg-primary-foreground text-primary font-semibold"
-                        : hasGame
-                        ? "bg-primary-foreground/20 text-primary-foreground font-medium"
-                        : "text-primary-foreground"
-                    }`}
-                  >
-                    {dayNum > 0 && dayNum <= 31 ? dayNum : ""}
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
