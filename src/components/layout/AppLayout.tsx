@@ -10,6 +10,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   LayoutDashboard,
   Calendar,
   BarChart3,
@@ -19,15 +24,45 @@ import {
   X,
   Bell,
   User,
+  ClipboardList,
+  Users,
+  UserCog,
+  Settings,
 } from "lucide-react";
-import { mockAssociations, mockClubs, mockTeams } from "@/lib/mockData";
+import { mockAssociations, mockTeams, currentUser, mockNotifications, type Role } from "@/lib/mockData";
+import { Badge } from "@/components/ui/badge";
 
-const navItems = [
+// Base nav items for all users
+const baseNavItems = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { path: "/games", label: "Fixtures", icon: Calendar },
   { path: "/roster", label: "Statistics", icon: BarChart3 },
   { path: "/chat", label: "Chat", icon: MessageCircle },
 ];
+
+// Coach-only nav items
+const coachNavItems = [
+  { path: "/lineup", label: "Lineups", icon: ClipboardList },
+  { path: "/team-management", label: "Team", icon: Users },
+];
+
+// Admin-only nav items
+const adminNavItems = [
+  { path: "/user-management", label: "Users", icon: UserCog },
+  { path: "/settings", label: "Settings", icon: Settings },
+];
+
+// Get nav items based on user role
+const getNavItems = (role: Role) => {
+  let items = [...baseNavItems];
+  if (role === "COACH" || role === "ADMIN") {
+    items = [...items, ...coachNavItems];
+  }
+  if (role === "ADMIN") {
+    items = [...items, ...adminNavItems];
+  }
+  return items;
+};
 
 const AppLayout = () => {
   const location = useLocation();
@@ -36,11 +71,9 @@ const AppLayout = () => {
   const [selectedAssociation, setSelectedAssociation] = useState(mockAssociations[0]?.id || "");
   const [selectedTeam, setSelectedTeam] = useState(mockTeams[0]?.id || "");
 
-  // Mock user data
-  const user = {
-    name: "James Wilson",
-    initials: "JW",
-  };
+  // Get nav items based on current user's role
+  const navItems = getNavItems(currentUser.role);
+  const unreadCount = mockNotifications.filter(n => !n.read).length;
 
   const handleLogout = () => {
     navigate("/");
@@ -65,10 +98,10 @@ const AppLayout = () => {
 
             {/* Association Selector */}
             <Select value={selectedAssociation} onValueChange={setSelectedAssociation}>
-              <SelectTrigger className="w-[180px] bg-accent text-accent-foreground border-0 font-medium">
+              <SelectTrigger className="w-[220px] bg-accent text-accent-foreground border-0 font-medium">
                 <SelectValue placeholder="Association" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border-border">
                 {mockAssociations.map((assoc) => (
                   <SelectItem key={assoc.id} value={assoc.id}>
                     {assoc.name}
@@ -79,10 +112,10 @@ const AppLayout = () => {
 
             {/* Team Selector */}
             <Select value={selectedTeam} onValueChange={setSelectedTeam}>
-              <SelectTrigger className="w-[180px] bg-accent text-accent-foreground border-0 font-medium">
+              <SelectTrigger className="w-[200px] bg-accent text-accent-foreground border-0 font-medium">
                 <SelectValue placeholder="Team" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border-border">
                 {mockTeams.map((team) => (
                   <SelectItem key={team.id} value={team.id}>
                     {team.name}
@@ -94,13 +127,62 @@ const AppLayout = () => {
 
           {/* Right: Notifications & User */}
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-primary-foreground hover:bg-primary-foreground/10"
-            >
-              <Bell className="h-5 w-5" />
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary-foreground hover:bg-primary-foreground/10 relative"
+                >
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center font-medium">
+                      {unreadCount}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0 bg-background border-border" align="end">
+                <div className="p-3 border-b border-border">
+                  <h4 className="font-semibold text-foreground">Notifications</h4>
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {mockNotifications.length === 0 ? (
+                    <p className="p-4 text-sm text-muted-foreground">No notifications</p>
+                  ) : (
+                    mockNotifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className={cn(
+                          "p-3 border-b border-border last:border-0 hover:bg-muted/50 cursor-pointer",
+                          !notification.read && "bg-muted/30"
+                        )}
+                      >
+                        <div className="flex items-start gap-2">
+                          <span className="text-lg">
+                            {notification.type === "AVAILABILITY_REMINDER" && "🔔"}
+                            {notification.type === "COACH_REMINDER" && "📢"}
+                            {notification.type === "UNREAD_CHAT" && "💬"}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-foreground">{notification.message}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(notification.date).toLocaleDateString("en-AU", {
+                                day: "numeric",
+                                month: "short",
+                              })}
+                            </p>
+                          </div>
+                          {!notification.read && (
+                            <Badge className="bg-primary text-primary-foreground text-xs">New</Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
             <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center">
               <User className="h-5 w-5 text-accent-foreground" />
             </div>
@@ -154,7 +236,7 @@ const AppLayout = () => {
               className="absolute inset-0 bg-black/50"
               onClick={() => setIsMobileMenuOpen(false)}
             />
-            <aside className="absolute left-0 top-14 bottom-0 w-64 bg-accent animate-slide-in-right">
+            <aside className="absolute left-0 top-14 bottom-0 w-64 bg-accent animate-slide-in-right flex flex-col">
               <nav className="flex-1 py-2">
                 {navItems.map((item) => {
                   const isActive = location.pathname === item.path;
@@ -203,7 +285,7 @@ const AppLayout = () => {
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border lg:hidden">
         <div className="flex justify-around py-2">
-          {navItems.map((item) => {
+          {baseNavItems.map((item) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
             return (

@@ -142,6 +142,7 @@ export const mockPlayers = [
 export const currentUser = {
   id: "1",
   name: "James Wilson",
+  role: "PLAYER" as Role, // Change to "COACH" or "ADMIN" to test
   primaryTeam: "Grampians HC",
   otherTeams: ["Grampians HC Women"],
   primaryPosition: "Centre Forward",
@@ -157,7 +158,46 @@ export const mockLineups: Record<string, { playerId: string; position: string }[
 // User's availability per game (initially only some set)
 export const mockUserAvailability: Record<string, AvailabilityStatus> = {
   "1": "AVAILABLE",
-  "2": "UNSURE",
+  "2": "AVAILABLE",
+  "5": "AVAILABLE",
+};
+
+// Notification types
+export type NotificationType = "AVAILABILITY_REMINDER" | "COACH_REMINDER" | "UNREAD_CHAT";
+
+// Mock notifications
+export const mockNotifications = [
+  {
+    id: "1",
+    type: "AVAILABILITY_REMINDER" as NotificationType,
+    gameId: "5",
+    message: "Add availability for Grampians HC vs Sebastopol (Jan 11)",
+    date: "2025-01-06",
+    read: false,
+  },
+  {
+    id: "2",
+    type: "COACH_REMINDER" as NotificationType,
+    gameId: "2",
+    message: "Coach reminder: Please confirm your availability",
+    date: "2024-12-26",
+    read: false,
+  },
+  {
+    id: "3",
+    type: "UNREAD_CHAT" as NotificationType,
+    chatId: "general",
+    message: "5 new messages in Club Chat",
+    date: "2024-12-26",
+    read: false,
+  },
+];
+
+// Coach selections for games
+export const mockCoachSelections: Record<string, { status: "SELECTED" | "NOT_SELECTED"; position?: string }> = {
+  "1": { status: "SELECTED", position: "Centre Forward" },
+  "4": { status: "NOT_SELECTED" },
+  // Games not in this list = awaiting selection
 };
 
 export const mockGames = [

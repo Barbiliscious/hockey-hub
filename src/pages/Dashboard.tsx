@@ -14,21 +14,29 @@ import {
   MapPin,
   Clock,
   ChevronRight,
+  ChevronLeft,
   Check,
   X,
   HelpCircle,
 } from "lucide-react";
-import { mockGames, currentUser, mockLineups, mockUserAvailability, type AvailabilityStatus } from "@/lib/mockData";
+import { mockGames, currentUser, mockLineups, mockUserAvailability, mockCoachSelections, type AvailabilityStatus } from "@/lib/mockData";
+import { Button } from "@/components/ui/button";
 
 const Dashboard = () => {
   const [gameFilter, setGameFilter] = useState<string>("all");
   const [userAvailability, setUserAvailability] = useState<Record<string, AvailabilityStatus>>(mockUserAvailability);
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
   
   const upcomingGames = mockGames
     .filter((game) => game.status === "SCHEDULED")
     .slice(0, 5);
 
-  const myTeamGames = upcomingGames.filter((game) => game.isClubTeamGame);
+  // Games where user is available and not rejected by coach
+  const upcomingForYou = upcomingGames.filter((game) => {
+    const isAvailable = userAvailability[game.id] === "AVAILABLE";
+    const notRejected = mockCoachSelections[game.id]?.status !== "NOT_SELECTED";
+    return game.isClubTeamGame && isAvailable && notRejected;
+  });
   
   const filteredGames = gameFilter === "all" 
     ? upcomingGames 
@@ -54,11 +62,24 @@ const Dashboard = () => {
     setUserAvailability(prev => ({ ...prev, [gameId]: status }));
   };
 
+  // Navigate calendar months
+  const navigateMonth = (direction: "prev" | "next") => {
+    setCalendarMonth(prev => {
+      const newDate = new Date(prev);
+      if (direction === "prev") {
+        newDate.setMonth(newDate.getMonth() - 1);
+      } else {
+        newDate.setMonth(newDate.getMonth() + 1);
+      }
+      return newDate;
+    });
+  };
+
   // Generate calendar data for 42 cells (6 weeks)
   const generateCalendarDays = () => {
     const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
     
     const firstDayOfMonth = new Date(year, month, 1);
     const lastDayOfMonth = new Date(year, month + 1, 0);
@@ -81,19 +102,26 @@ const Dashboard = () => {
       });
     }
     
-    // Current month days
+    // Get game days where user is AVAILABLE
     const gameDays = mockGames
       .filter(g => {
         const gameDate = new Date(g.date);
-        return gameDate.getMonth() === month && gameDate.getFullYear() === year;
+        const isThisMonth = gameDate.getMonth() === month && gameDate.getFullYear() === year;
+        const isAvailable = userAvailability[g.id] === "AVAILABLE";
+        return isThisMonth && isAvailable;
       })
       .map(g => new Date(g.date).getDate());
     
+    // Current month days
     for (let i = 1; i <= daysInMonth; i++) {
+      const isToday = 
+        i === today.getDate() && 
+        month === today.getMonth() && 
+        year === today.getFullYear();
       days.push({
         date: i,
         isCurrentMonth: true,
-        isToday: i === today.getDate(),
+        isToday,
         hasGame: gameDays.includes(i),
       });
     }
@@ -113,6 +141,11 @@ const Dashboard = () => {
   };
 
   const calendarDays = generateCalendarDays();
+  
+  const monthYearLabel = calendarMonth.toLocaleDateString("en-AU", {
+    month: "long",
+    year: "numeric",
+  });
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -267,10 +300,28 @@ const Dashboard = () => {
           {/* Calendar */}
           <Card className="bg-primary text-primary-foreground h-[260px]">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold text-primary-foreground flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Calendar
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-primary-foreground hover:bg-primary-foreground/10"
+                  onClick={() => navigateMonth("prev")}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <CardTitle className="text-base font-semibold text-primary-foreground flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  {monthYearLabel}
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-primary-foreground hover:bg-primary-foreground/10"
+                  onClick={() => navigateMonth("next")}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {/* 6-week calendar view */}
@@ -287,7 +338,7 @@ const Dashboard = () => {
                       day.isToday
                         ? "bg-primary-foreground text-primary font-bold"
                         : day.hasGame && day.isCurrentMonth
-                        ? "bg-primary-foreground/20 text-primary-foreground font-medium"
+                        ? "bg-green-500 text-white font-medium"
                         : day.isCurrentMonth
                         ? "text-primary-foreground font-medium"
                         : "text-primary-foreground/40"
@@ -300,51 +351,70 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          {/* My Team Games */}
+          {/* Upcoming Games For You */}
           <Card className="bg-primary text-primary-foreground">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-semibold text-primary-foreground">
-                Upcoming games for your team/s approved for
+                Upcoming games for you
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {myTeamGames.length === 0 ? (
-                <p className="text-primary-foreground/70 text-sm">No team games scheduled</p>
+              {upcomingForYou.length === 0 ? (
+                <p className="text-primary-foreground/70 text-sm">No upcoming games for you</p>
               ) : (
-                myTeamGames.slice(0, 4).map((game) => (
-                  <Link
-                    key={game.id}
-                    to={`/games/${game.id}`}
-                    className="block p-3 rounded-lg bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium">
-                        {game.homeTeamName} vs {game.awayTeamName}
-                      </p>
-                      <Badge className="bg-primary-foreground/20 text-primary-foreground border-0 text-xs">
-                        {game.grade}
-                      </Badge>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-primary-foreground/70">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {new Date(game.date).toLocaleDateString("en-AU", {
-                          weekday: "short",
-                          day: "numeric",
-                          month: "short",
-                        })}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {game.startTime}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {game.location}
-                      </span>
-                    </div>
-                  </Link>
-                ))
+                upcomingForYou.slice(0, 4).map((game) => {
+                  const coachSelection = mockCoachSelections[game.id];
+                  const isSelected = coachSelection?.status === "SELECTED";
+                  const isAwaiting = !coachSelection; // Not in the list = awaiting
+
+                  return (
+                    <Link
+                      key={game.id}
+                      to={`/games/${game.id}`}
+                      className={`block p-3 rounded-lg bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors border-2 ${
+                        isSelected
+                          ? "border-green-500"
+                          : isAwaiting
+                          ? "border-orange-400"
+                          : "border-transparent"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-medium">
+                          {game.homeTeamName} vs {game.awayTeamName}
+                        </p>
+                        {isSelected && coachSelection?.position && (
+                          <Badge className="bg-green-500 text-white border-0 text-xs">
+                            {coachSelection.position}
+                          </Badge>
+                        )}
+                        {isAwaiting && (
+                          <Badge className="bg-orange-400 text-white border-0 text-xs">
+                            Awaiting selection
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-primary-foreground/70">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(game.date).toLocaleDateString("en-AU", {
+                            weekday: "short",
+                            day: "numeric",
+                            month: "short",
+                          })}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {game.startTime}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {game.location}
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })
               )}
             </CardContent>
           </Card>
