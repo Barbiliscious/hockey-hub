@@ -1,0 +1,190 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Mail, Phone, MapPin, Calendar, AlertCircle } from "lucide-react";
+import type { PlayerProfile, EmergencyContact } from "@/lib/mockData";
+
+interface PersonalDetailsSectionProps {
+  profile: PlayerProfile;
+  isEditing: boolean;
+  formData: {
+    name: string;
+    phone: string;
+    suburb: string;
+    dateOfBirth: string;
+    emergencyContact: EmergencyContact;
+  };
+  onFormChange: (data: Partial<PersonalDetailsSectionProps["formData"]>) => void;
+}
+
+export const PersonalDetailsSection = ({
+  profile,
+  isEditing,
+  formData,
+  onFormChange,
+}: PersonalDetailsSectionProps) => {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Personal Details</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Name */}
+        <div className="space-y-2">
+          <Label htmlFor="name">Full Name</Label>
+          {isEditing ? (
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => onFormChange({ name: e.target.value })}
+            />
+          ) : (
+            <p className="text-foreground py-2">{formData.name}</p>
+          )}
+        </div>
+
+        {/* Email (read-only) */}
+        <div className="space-y-2">
+          <Label>Email</Label>
+          <div className="flex items-center gap-2 py-2">
+            <Mail className="h-4 w-4 text-muted-foreground" />
+            <p className="text-foreground">{profile.email}</p>
+          </div>
+        </div>
+
+        {/* Phone */}
+        <div className="space-y-2">
+          <Label htmlFor="phone">Phone Number</Label>
+          {isEditing ? (
+            <Input
+              id="phone"
+              value={formData.phone}
+              onChange={(e) => onFormChange({ phone: e.target.value })}
+              placeholder="0400 000 000"
+            />
+          ) : (
+            <div className="flex items-center gap-2 py-2">
+              <Phone className="h-4 w-4 text-muted-foreground" />
+              <p className="text-foreground">{formData.phone || "Not set"}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Suburb/Address */}
+        <div className="space-y-2">
+          <Label htmlFor="suburb">Suburb/Address</Label>
+          {isEditing ? (
+            <Input
+              id="suburb"
+              value={formData.suburb}
+              onChange={(e) => onFormChange({ suburb: e.target.value })}
+              placeholder="Enter your suburb"
+            />
+          ) : (
+            <div className="flex items-center gap-2 py-2">
+              <MapPin className="h-4 w-4 text-muted-foreground" />
+              <p className="text-foreground">{formData.suburb || "Not set"}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Date of Birth */}
+        <div className="space-y-2">
+          <Label htmlFor="dob">Date of Birth</Label>
+          {isEditing ? (
+            <Input
+              id="dob"
+              type="date"
+              value={formData.dateOfBirth}
+              onChange={(e) => onFormChange({ dateOfBirth: e.target.value })}
+            />
+          ) : (
+            <div className="flex items-center gap-2 py-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <p className="text-foreground">
+                {formData.dateOfBirth
+                  ? new Date(formData.dateOfBirth).toLocaleDateString("en-AU", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })
+                  : "Not set"}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Emergency Contact */}
+        <div className="space-y-3 pt-2">
+          <Label className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-destructive" />
+            Emergency Contact
+          </Label>
+          {isEditing ? (
+            <div className="space-y-3 pl-6">
+              <div className="space-y-1">
+                <Label htmlFor="ec-name" className="text-xs text-muted-foreground">
+                  Name
+                </Label>
+                <Input
+                  id="ec-name"
+                  value={formData.emergencyContact.name}
+                  onChange={(e) =>
+                    onFormChange({
+                      emergencyContact: { ...formData.emergencyContact, name: e.target.value },
+                    })
+                  }
+                  placeholder="Contact name"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="ec-phone" className="text-xs text-muted-foreground">
+                  Phone
+                </Label>
+                <Input
+                  id="ec-phone"
+                  value={formData.emergencyContact.phone}
+                  onChange={(e) =>
+                    onFormChange({
+                      emergencyContact: { ...formData.emergencyContact, phone: e.target.value },
+                    })
+                  }
+                  placeholder="Contact phone"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="ec-relationship" className="text-xs text-muted-foreground">
+                  Relationship
+                </Label>
+                <Input
+                  id="ec-relationship"
+                  value={formData.emergencyContact.relationship}
+                  onChange={(e) =>
+                    onFormChange({
+                      emergencyContact: {
+                        ...formData.emergencyContact,
+                        relationship: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder="e.g. Spouse, Parent"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="pl-6 space-y-1">
+              <p className="text-foreground font-medium">
+                {formData.emergencyContact.name || "Not set"}
+              </p>
+              {formData.emergencyContact.phone && (
+                <p className="text-sm text-muted-foreground">
+                  {formData.emergencyContact.phone} • {formData.emergencyContact.relationship}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};

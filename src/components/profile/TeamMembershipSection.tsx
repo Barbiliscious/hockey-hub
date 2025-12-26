@@ -1,0 +1,144 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Users, RefreshCw, Calendar, Shirt } from "lucide-react";
+import type { TeamMembership, PrimaryChangeRequest } from "@/lib/mockData";
+
+interface TeamMembershipSectionProps {
+  primaryTeam: TeamMembership | null;
+  extraTeams: TeamMembership[];
+  pendingChangeRequest: PrimaryChangeRequest | null;
+  onRequestChange: () => void;
+}
+
+export const TeamMembershipSection = ({
+  primaryTeam,
+  extraTeams,
+  pendingChangeRequest,
+  onRequestChange,
+}: TeamMembershipSectionProps) => {
+  return (
+    <div className="space-y-4">
+      {/* Primary Team */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-lg">Primary Team</CardTitle>
+          {primaryTeam && !pendingChangeRequest && (
+            <Button variant="outline" size="sm" onClick={onRequestChange}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Request Change
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          {primaryTeam ? (
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-foreground">{primaryTeam.teamName}</p>
+                <p className="text-sm text-muted-foreground">{primaryTeam.clubName}</p>
+                <div className="flex items-center gap-3 mt-1">
+                  {primaryTeam.position && (
+                    <Badge variant="secondary" className="text-xs">
+                      {primaryTeam.position}
+                    </Badge>
+                  )}
+                  {primaryTeam.jerseyNumber && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Shirt className="h-3 w-3" />#{primaryTeam.jerseyNumber}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <Badge variant="default">Primary</Badge>
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <Users className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground">No primary team</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Accept a team invite to set your primary team
+              </p>
+            </div>
+          )}
+
+          {/* Pending Change Request */}
+          {pendingChangeRequest && (
+            <div className="mt-4 p-3 bg-muted rounded-lg border border-border">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 text-accent animate-spin" />
+                <span className="text-sm font-medium text-foreground">
+                  Change Request Pending
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Requesting to change from {pendingChangeRequest.fromTeamName} to{" "}
+                {pendingChangeRequest.toTeamName}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Extra Teams */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Additional Teams</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {extraTeams.length > 0 ? (
+            <div className="space-y-3">
+              {extraTeams.map((team, index) => (
+                <div
+                  key={`${team.teamId}-${index}`}
+                  className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-secondary/20 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-secondary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground truncate">{team.teamName}</p>
+                    <p className="text-xs text-muted-foreground">{team.clubName}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      {team.position && (
+                        <span className="text-xs text-muted-foreground">{team.position}</span>
+                      )}
+                      {team.jerseyNumber && (
+                        <span className="text-xs text-muted-foreground">
+                          • #{team.jerseyNumber}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge
+                      variant={team.type === "FILL_IN" ? "outline" : "secondary"}
+                      className="text-xs"
+                    >
+                      {team.type === "FILL_IN" ? "Fill-in" : "Permanent"}
+                    </Badge>
+                    {team.type === "FILL_IN" && team.gameDate && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(team.gameDate).toLocaleDateString("en-AU", {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No additional team memberships
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};

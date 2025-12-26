@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -28,9 +28,22 @@ import {
   Users,
   UserCog,
   Settings,
+  Building2,
+  Shield,
+  Globe,
 } from "lucide-react";
-import { mockAssociations, mockTeams, currentUser, mockNotifications, type Role } from "@/lib/mockData";
+import {
+  mockAssociations,
+  mockClubs,
+  mockTeams,
+  currentUser,
+  mockNotifications,
+  getClubsByAssociation,
+  getTeamsByClub,
+  type Role,
+} from "@/lib/mockData";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Base nav items for all users
 const baseNavItems = [
@@ -46,21 +59,35 @@ const coachNavItems = [
   { path: "/team-management", label: "Team", icon: Users },
 ];
 
-// Admin-only nav items
-const adminNavItems = [
+// Association Admin nav items
+const associationAdminNavItems = [
+  { path: "/association", label: "Association", icon: Building2 },
+  { path: "/clubs", label: "Clubs", icon: Shield },
   { path: "/user-management", label: "Users", icon: UserCog },
-  { path: "/settings", label: "Settings", icon: Settings },
 ];
 
-// Get nav items based on user role
+// System Admin nav items
+const systemAdminNavItems = [
+  { path: "/all-associations", label: "All Associations", icon: Globe },
+  { path: "/settings", label: "System Settings", icon: Settings },
+];
+
+// Get nav items based on user role (4-tier navigation)
 const getNavItems = (role: Role) => {
   let items = [...baseNavItems];
-  if (role === "COACH" || role === "ADMIN") {
+  
+  if (role === "COACH" || role === "ASSOCIATION_ADMIN" || role === "SYSTEM_ADMIN") {
     items = [...items, ...coachNavItems];
   }
-  if (role === "ADMIN") {
-    items = [...items, ...adminNavItems];
+  
+  if (role === "ASSOCIATION_ADMIN" || role === "SYSTEM_ADMIN") {
+    items = [...items, ...associationAdminNavItems];
   }
+  
+  if (role === "SYSTEM_ADMIN") {
+    items = [...items, ...systemAdminNavItems];
+  }
+  
   return items;
 };
 
@@ -68,12 +95,57 @@ const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAssociationPopoverOpen, setIsAssociationPopoverOpen] = useState(false);
+  
+  // Cascading selectors state
   const [selectedAssociation, setSelectedAssociation] = useState(mockAssociations[0]?.id || "");
-  const [selectedTeam, setSelectedTeam] = useState(mockTeams[0]?.id || "");
+  const [selectedClub, setSelectedClub] = useState(() => {
+    const clubs = getClubsByAssociation(mockAssociations[0]?.id || "");
+    return clubs[0]?.id || "";
+  });
+  const [selectedTeam, setSelectedTeam] = useState(() => {
+    const clubs = getClubsByAssociation(mockAssociations[0]?.id || "");
+    const teams = getTeamsByClub(clubs[0]?.id || "");
+    return teams[0]?.id || "";
+  });
 
-  // Get nav items based on current user's role
-  const navItems = getNavItems(currentUser.role);
-  const unreadCount = mockNotifications.filter(n => !n.read).length;
+  // Derived data for cascading dropdowns
+  const filteredClubs = useMemo(() => {
+    return getClubsByAssociation(selectedAssociation);
+  }, [selectedAssociation]);
+
+  const filteredTeams = useMemo(() => {
+    return getTeamsByClub(selectedClub);
+  }, [selectedClub]);
+
+  const selectedAssociationData = useMemo(() => {
+    return mockAssociations.find((a) => a.id === selectedAssociation);
+  }, [selectedAssociation]);
+
+  // Handle association change - reset club and team
+  const handleAssociationChange = (associationId: string) => {
+    setSelectedAssociation(associationId);
+    setIsAssociationPopoverOpen(false);
+    
+    const clubs = getClubsByAssociation(associationId);
+    const newClubId = clubs[0]?.id || "";
+    setSelectedClub(newClubId);
+    
+    const teams = getTeamsByClub(newClubId);
+    setSelectedTeam(teams[0]?.id || "");
+  };
+
+  // Handle club change - reset team
+  const handleClubChange = (clubId: string) => {
+    setSelectedClub(clubId);
+    const teams = getTeamsByClub(clubId);
+    setSelectedTeam(teams[0]?.id || "");
+  };
+
+  // Get user role - for demo, we'll use PLAYER but can be changed
+  const userRole: Role = currentUser.primaryTeam ? "PLAYER" : "PLAYER";
+  const navItems = getNavItems(userRole);
+  const unreadCount = mockNotifications.filter((n) => !n.read).length;
 
   const handleLogout = () => {
     navigate("/");
@@ -84,7 +156,7 @@ const AppLayout = () => {
       {/* Top Header Bar */}
       <header className="sticky top-0 z-50 bg-primary border-b border-primary/20">
         <div className="flex h-14 items-center justify-between px-4">
-          {/* Left: Association & Team Selectors */}
+          {/* Left: Association Logo & Selectors */}
           <div className="flex items-center gap-2">
             {/* Mobile menu toggle */}
             <Button
@@ -96,15 +168,60 @@ const AppLayout = () => {
               {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
 
-            {/* Association Selector */}
-            <Select value={selectedAssociation} onValueChange={setSelectedAssociation}>
-              <SelectTrigger className="w-[220px] bg-accent text-accent-foreground border-0 font-medium">
-                <SelectValue placeholder="Association" />
+            {/* Association Logo with Popover */}
+            <Popover open={isAssociationPopoverOpen} onOpenChange={setIsAssociationPopoverOpen}>
+              <PopoverTrigger asChild>
+                <button className="w-10 h-10 rounded-lg overflow-hidden border-2 border-primary-foreground/20 hover:border-primary-foreground/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-foreground/50">
+                  <Avatar className="w-full h-full rounded-none">
+                    <AvatarImage 
+                      src={selectedAssociationData?.logo} 
+                      alt={selectedAssociationData?.name} 
+                      className="object-cover"
+                    />
+                    <AvatarFallback className="rounded-none bg-accent text-accent-foreground text-xs font-semibold">
+                      {selectedAssociationData?.name?.substring(0, 2).toUpperCase() || "HA"}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-2 bg-background border-border" align="start">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground px-2 py-1">
+                    Select Association
+                  </p>
+                  {mockAssociations.map((assoc) => (
+                    <button
+                      key={assoc.id}
+                      onClick={() => handleAssociationChange(assoc.id)}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-2 py-2 rounded-lg text-left transition-colors",
+                        selectedAssociation === assoc.id
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted text-foreground"
+                      )}
+                    >
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={assoc.logo} alt={assoc.name} className="object-cover" />
+                        <AvatarFallback className="text-xs">
+                          {assoc.name.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium truncate">{assoc.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Club Selector */}
+            <Select value={selectedClub} onValueChange={handleClubChange}>
+              <SelectTrigger className="w-[180px] lg:w-[200px] bg-accent text-accent-foreground border-0 font-medium">
+                <SelectValue placeholder="Select Club" />
               </SelectTrigger>
               <SelectContent className="bg-background border-border">
-                {mockAssociations.map((assoc) => (
-                  <SelectItem key={assoc.id} value={assoc.id}>
-                    {assoc.name}
+                {filteredClubs.map((club) => (
+                  <SelectItem key={club.id} value={club.id}>
+                    {club.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -112,11 +229,11 @@ const AppLayout = () => {
 
             {/* Team Selector */}
             <Select value={selectedTeam} onValueChange={setSelectedTeam}>
-              <SelectTrigger className="w-[200px] bg-accent text-accent-foreground border-0 font-medium">
-                <SelectValue placeholder="Team" />
+              <SelectTrigger className="w-[140px] lg:w-[180px] bg-accent text-accent-foreground border-0 font-medium">
+                <SelectValue placeholder="Select Team" />
               </SelectTrigger>
               <SelectContent className="bg-background border-border">
-                {mockTeams.map((team) => (
+                {filteredTeams.map((team) => (
                   <SelectItem key={team.id} value={team.id}>
                     {team.name}
                   </SelectItem>
@@ -163,6 +280,10 @@ const AppLayout = () => {
                             {notification.type === "AVAILABILITY_REMINDER" && "🔔"}
                             {notification.type === "COACH_REMINDER" && "📢"}
                             {notification.type === "UNREAD_CHAT" && "💬"}
+                            {notification.type === "TEAM_INVITE" && "📩"}
+                            {notification.type === "FILL_IN_INVITE" && "⚡"}
+                            {notification.type === "AVAILABILITY_CHANGE" && "🔄"}
+                            {notification.type === "FILL_IN_DECLINED" && "❌"}
                           </span>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm text-foreground">{notification.message}</p>
@@ -183,9 +304,13 @@ const AppLayout = () => {
                 </div>
               </PopoverContent>
             </Popover>
-            <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center">
-              <User className="h-5 w-5 text-accent-foreground" />
-            </div>
+            
+            {/* User Profile Button */}
+            <Link to="/profile">
+              <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center hover:ring-2 hover:ring-primary-foreground/50 transition-all cursor-pointer">
+                <User className="h-5 w-5 text-accent-foreground" />
+              </div>
+            </Link>
           </div>
         </div>
       </header>
