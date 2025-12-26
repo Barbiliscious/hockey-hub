@@ -138,12 +138,35 @@ export const mockPlayers = [
   { id: "24", name: "Harper Robinson", position: "Left Wing", number: 25 },
 ];
 
+// Current user profile
+export const currentUser = {
+  id: "1",
+  name: "James Wilson",
+  primaryTeam: "Grampians HC",
+  otherTeams: ["Grampians HC Women"],
+  primaryPosition: "Centre Forward",
+  otherPositions: ["Left Inside", "Right Inside"],
+};
+
+// Demo lineup data - games where user is selected by coach
+export const mockLineups: Record<string, { playerId: string; position: string }[]> = {
+  "1": [{ playerId: "1", position: "Centre Forward" }],
+  "4": [{ playerId: "1", position: "Left Wing" }],
+};
+
+// User's availability per game (initially only some set)
+export const mockUserAvailability: Record<string, AvailabilityStatus> = {
+  "1": "AVAILABLE",
+  "2": "UNSURE",
+};
+
 export const mockGames = [
   {
     id: "1",
     teamId: "1",
     homeTeamName: "Grampians HC",
     awayTeamName: "Ballarat Tigers",
+    associationName: "Ballarat HA",
     grade: "Division 2",
     date: "2024-12-28",
     startTime: "14:30",
@@ -156,6 +179,7 @@ export const mockGames = [
     teamId: "1",
     homeTeamName: "Wendouree FC",
     awayTeamName: "Grampians HC",
+    associationName: "Ballarat HA",
     grade: "Division 2",
     date: "2025-01-04",
     startTime: "16:00",
@@ -168,6 +192,7 @@ export const mockGames = [
     teamId: null,
     homeTeamName: "Ballarat Tigers",
     awayTeamName: "Wendouree FC",
+    associationName: "Ballarat HA",
     grade: "Division 2",
     date: "2024-12-28",
     startTime: "12:00",
@@ -180,6 +205,7 @@ export const mockGames = [
     teamId: "2",
     homeTeamName: "Grampians HC Women",
     awayTeamName: "Wendouree Ladies",
+    associationName: "Ballarat HA",
     grade: "Division 1",
     date: "2024-12-29",
     startTime: "10:00",
@@ -192,6 +218,7 @@ export const mockGames = [
     teamId: "1",
     homeTeamName: "Grampians HC",
     awayTeamName: "Sebastopol United",
+    associationName: "Ballarat HA",
     grade: "Division 2",
     date: "2025-01-11",
     startTime: "15:00",
@@ -204,6 +231,7 @@ export const mockGames = [
     teamId: null,
     homeTeamName: "Geelong Saints",
     awayTeamName: "Ballarat Tigers",
+    associationName: "Geelong HA",
     grade: "Premier League",
     date: "2025-01-05",
     startTime: "18:00",
@@ -216,6 +244,7 @@ export const mockGames = [
     teamId: "3",
     homeTeamName: "Grampians U17",
     awayTeamName: "Tigers U17",
+    associationName: "Ballarat HA",
     grade: "Under 17",
     date: "2024-12-30",
     startTime: "09:00",
@@ -228,6 +257,7 @@ export const mockGames = [
     teamId: null,
     homeTeamName: "Bendigo Thunder",
     awayTeamName: "Geelong Saints",
+    associationName: "Bendigo HA",
     grade: "Division 1",
     date: "2025-01-12",
     startTime: "14:00",
@@ -240,6 +270,7 @@ export const mockGames = [
     teamId: "4",
     homeTeamName: "Grampians HC Div1",
     awayTeamName: "Wendouree Premier",
+    associationName: "Ballarat HA",
     grade: "Division 1",
     date: "2025-01-18",
     startTime: "16:30",
@@ -252,6 +283,7 @@ export const mockGames = [
     teamId: null,
     homeTeamName: "Sebastopol United",
     awayTeamName: "Ballarat Tigers",
+    associationName: "Ballarat HA",
     grade: "Division 2",
     date: "2025-01-19",
     startTime: "11:00",
@@ -264,6 +296,7 @@ export const mockGames = [
     teamId: "2",
     homeTeamName: "Tigers Ladies",
     awayTeamName: "Grampians HC Women",
+    associationName: "Ballarat HA",
     grade: "Division 1",
     date: "2025-01-25",
     startTime: "13:00",
@@ -276,6 +309,7 @@ export const mockGames = [
     teamId: null,
     homeTeamName: "Wendouree FC",
     awayTeamName: "Sebastopol United",
+    associationName: "Ballarat HA",
     grade: "Division 3",
     date: "2025-01-26",
     startTime: "10:30",
