@@ -38,7 +38,9 @@ export const TeamMembershipSection = ({
               </div>
               <div className="flex-1">
                 <p className="font-semibold text-foreground">{primaryTeam.teamName}</p>
-                <p className="text-sm text-muted-foreground">{primaryTeam.clubName}</p>
+                <p className="text-sm text-muted-foreground">
+                  {primaryTeam.clubName} • {primaryTeam.associationName}
+                </p>
                 <div className="flex items-center gap-3 mt-1">
                   {primaryTeam.position && (
                     <Badge variant="secondary" className="text-xs">
@@ -100,7 +102,9 @@ export const TeamMembershipSection = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate">{team.teamName}</p>
-                    <p className="text-xs text-muted-foreground">{team.clubName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {team.clubName} • {team.associationName}
+                    </p>
                     <div className="flex items-center gap-2 mt-1">
                       {team.position && (
                         <span className="text-xs text-muted-foreground">{team.position}</span>
