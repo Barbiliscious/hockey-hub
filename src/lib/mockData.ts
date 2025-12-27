@@ -3,7 +3,7 @@
 
 // ============= TYPE DEFINITIONS =============
 
-export type Role = "PLAYER" | "COACH" | "ASSOCIATION_ADMIN" | "SYSTEM_ADMIN";
+export type Role = "PLAYER" | "COACH" | "CLUB_ADMIN" | "ASSOCIATION_ADMIN" | "SYSTEM_ADMIN";
 export type AvailabilityStatus = "AVAILABLE" | "UNAVAILABLE" | "UNSURE";
 export type GameStatus = "SCHEDULED" | "FINALISED";
 export type MembershipType = "PRIMARY" | "PERMANENT" | "FILL_IN";
