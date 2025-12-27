@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Phone, MapPin, Calendar, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Mail, Phone, MapPin, Calendar, AlertCircle, Save } from "lucide-react";
 import type { PlayerProfile, EmergencyContact } from "@/lib/mockData";
 
 interface PersonalDetailsSectionProps {
@@ -15,6 +16,7 @@ interface PersonalDetailsSectionProps {
     emergencyContact: EmergencyContact;
   };
   onFormChange: (data: Partial<PersonalDetailsSectionProps["formData"]>) => void;
+  onEditToggle: () => void;
 }
 
 export const PersonalDetailsSection = ({
@@ -22,11 +24,26 @@ export const PersonalDetailsSection = ({
   isEditing,
   formData,
   onFormChange,
+  onEditToggle,
 }: PersonalDetailsSectionProps) => {
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-lg">Personal Details</CardTitle>
+        <Button
+          variant={isEditing ? "default" : "outline"}
+          size="sm"
+          onClick={onEditToggle}
+        >
+          {isEditing ? (
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Save
+            </>
+          ) : (
+            "Edit"
+          )}
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Name */}

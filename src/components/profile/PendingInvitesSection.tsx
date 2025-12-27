@@ -31,16 +31,16 @@ export const PendingInvitesSection = ({
 
   return (
     <Card className="border-accent border-2">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 py-3">
         <div className="flex items-center gap-2">
-          <Mail className="h-5 w-5 text-accent" />
-          <CardTitle className="text-lg">Pending Invites</CardTitle>
-          <Badge variant="default" className="ml-auto">
+          <Mail className="h-4 w-4 text-accent" />
+          <CardTitle className="text-base">Pending Invites</CardTitle>
+          <Badge variant="default" className="ml-auto text-xs">
             {pendingInvites.length}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-2 pt-0">
         {pendingInvites.map((invite) => {
           const daysLeft = getDaysUntilExpiry(invite.expiresAt);
           const isUrgent = daysLeft <= 3;
@@ -48,12 +48,12 @@ export const PendingInvitesSection = ({
           return (
             <div
               key={invite.id}
-              className="p-4 bg-muted/50 rounded-lg border border-border"
+              className="p-3 bg-muted/50 rounded-lg border border-border"
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="font-semibold text-foreground truncate">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-foreground text-sm truncate">
                       {invite.teamName}
                     </p>
                     <Badge
@@ -63,64 +63,48 @@ export const PendingInvitesSection = ({
                       {invite.type === "FILL_IN" ? "Fill-in" : "Permanent"}
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground">{invite.clubName}</p>
-
-                  {/* Game date for fill-ins */}
-                  {invite.type === "FILL_IN" && invite.gameDate && (
-                    <div className="flex items-center gap-1 mt-2 text-sm">
-                      <Calendar className="h-4 w-4 text-accent" />
-                      <span className="text-foreground">
-                        Game:{" "}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
+                    <span>{invite.clubName}</span>
+                    {invite.type === "FILL_IN" && invite.gameDate && (
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
                         {new Date(invite.gameDate).toLocaleDateString("en-AU", {
-                          weekday: "short",
                           day: "numeric",
                           month: "short",
                         })}
                       </span>
-                    </div>
-                  )}
-
-                  {/* Coach & Expiry */}
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
+                    )}
+                    <span className="flex items-center gap-1">
                       <User className="h-3 w-3" />
-                      <span>From: {invite.sentBy}</span>
-                    </div>
-                    <div
+                      {invite.sentBy}
+                    </span>
+                    <span
                       className={`flex items-center gap-1 ${
                         isUrgent ? "text-destructive" : ""
                       }`}
                     >
                       <Clock className="h-3 w-3" />
-                      <span>
-                        {daysLeft > 0
-                          ? `Expires in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`
-                          : "Expires today"}
-                      </span>
-                    </div>
+                      {daysLeft > 0 ? `${daysLeft}d` : "Today"}
+                    </span>
                   </div>
                 </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-2 mt-4">
-                <Button
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => onAccept(invite.id)}
-                >
-                  <Check className="h-4 w-4 mr-1" />
-                  Accept
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => onDecline(invite.id)}
-                >
-                  <X className="h-4 w-4 mr-1" />
-                  Decline
-                </Button>
+                <div className="flex gap-1.5 shrink-0">
+                  <Button
+                    size="sm"
+                    className="h-8 px-3"
+                    onClick={() => onAccept(invite.id)}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-3"
+                    onClick={() => onDecline(invite.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           );

@@ -15,6 +15,8 @@ export interface TeamMembership {
   teamName: string;
   clubId: string;
   clubName: string;
+  associationId: string;
+  associationName: string;
   type: MembershipType;
   position?: string;
   jerseyNumber?: number;
@@ -61,10 +63,35 @@ export interface PlayerProfile {
   emergencyContact: EmergencyContact;
   dateOfBirth: string;
   associationId: string; // Required - all profiles must have association
+  avatarUrl?: string;
   primaryTeam: TeamMembership | null; // null = "no team"
   extraTeams: TeamMembership[];
   pendingInvites: TeamInvite[];
   pendingPrimaryChangeRequest: PrimaryChangeRequest | null;
+}
+
+// ============= PLAYER STATS RECORDS =============
+
+export interface PlayerGameRecord {
+  id: string;
+  date: string;
+  teamName: string;
+  clubName: string;
+  associationName: string;
+  opponent: string;
+  location: string;
+  result?: string;
+}
+
+export interface PlayerGoalRecord {
+  id: string;
+  date: string;
+  gameId: string;
+  teamName: string;
+  clubName: string;
+  associationName: string;
+  opponent: string;
+  minute?: number;
 }
 
 // ============= ASSOCIATIONS =============
@@ -268,11 +295,14 @@ export const currentUser: PlayerProfile = {
   },
   dateOfBirth: "1992-05-15",
   associationId: "1",
+  avatarUrl: undefined,
   primaryTeam: {
     teamId: "1",
     teamName: "Div2 Men",
     clubId: "1",
     clubName: "Grampians Hockey Club",
+    associationId: "1",
+    associationName: "Ballarat Hockey Association",
     type: "PRIMARY",
     position: "Centre Forward",
     jerseyNumber: 7,
@@ -283,6 +313,8 @@ export const currentUser: PlayerProfile = {
       teamName: "Div1 Men",
       clubId: "1",
       clubName: "Grampians Hockey Club",
+      associationId: "1",
+      associationName: "Ballarat Hockey Association",
       type: "PERMANENT",
       position: "Left Wing",
       jerseyNumber: 11,
@@ -305,6 +337,144 @@ export const currentUser: PlayerProfile = {
   ],
   pendingPrimaryChangeRequest: null,
 };
+
+// ============= MOCK PLAYER STATS =============
+
+export const mockPlayerGames: PlayerGameRecord[] = [
+  {
+    id: "pg-1",
+    date: "2024-12-28",
+    teamName: "Div2 Men",
+    clubName: "Grampians Hockey Club",
+    associationName: "Ballarat Hockey Association",
+    opponent: "Ballarat Tigers",
+    location: "Prince of Wales Park",
+    result: "W 3-1",
+  },
+  {
+    id: "pg-2",
+    date: "2024-12-21",
+    teamName: "Div2 Men",
+    clubName: "Grampians Hockey Club",
+    associationName: "Ballarat Hockey Association",
+    opponent: "Wendouree FC",
+    location: "Wendouree Sports Complex",
+    result: "D 2-2",
+  },
+  {
+    id: "pg-3",
+    date: "2024-12-14",
+    teamName: "Div1 Men",
+    clubName: "Grampians Hockey Club",
+    associationName: "Ballarat Hockey Association",
+    opponent: "Sebastopol United",
+    location: "Prince of Wales Park",
+    result: "W 4-0",
+  },
+  {
+    id: "pg-4",
+    date: "2024-12-07",
+    teamName: "Div2 Men",
+    clubName: "Grampians Hockey Club",
+    associationName: "Ballarat Hockey Association",
+    opponent: "Ballarat Tigers",
+    location: "Tiger Arena",
+    result: "L 1-2",
+  },
+  {
+    id: "pg-5",
+    date: "2024-11-30",
+    teamName: "Div2 Men",
+    clubName: "Grampians Hockey Club",
+    associationName: "Ballarat Hockey Association",
+    opponent: "Wendouree FC",
+    location: "Prince of Wales Park",
+    result: "W 2-1",
+  },
+  {
+    id: "pg-6",
+    date: "2024-11-23",
+    teamName: "Div1 Men",
+    clubName: "Grampians Hockey Club",
+    associationName: "Ballarat Hockey Association",
+    opponent: "Wendouree Premier",
+    location: "Wendouree Sports Complex",
+    result: "W 3-2",
+  },
+  {
+    id: "pg-7",
+    date: "2024-11-16",
+    teamName: "Div2 Men",
+    clubName: "Grampians Hockey Club",
+    associationName: "Ballarat Hockey Association",
+    opponent: "Sebastopol United",
+    location: "Sebastopol Recreation Reserve",
+    result: "D 1-1",
+  },
+  {
+    id: "pg-8",
+    date: "2024-11-09",
+    teamName: "Div2 Men",
+    clubName: "Grampians Hockey Club",
+    associationName: "Ballarat Hockey Association",
+    opponent: "Ballarat Tigers",
+    location: "Prince of Wales Park",
+    result: "W 2-0",
+  },
+];
+
+export const mockPlayerGoals: PlayerGoalRecord[] = [
+  {
+    id: "goal-1",
+    date: "2024-12-28",
+    gameId: "pg-1",
+    teamName: "Div2 Men",
+    clubName: "Grampians Hockey Club",
+    associationName: "Ballarat Hockey Association",
+    opponent: "Ballarat Tigers",
+    minute: 23,
+  },
+  {
+    id: "goal-2",
+    date: "2024-12-14",
+    gameId: "pg-3",
+    teamName: "Div1 Men",
+    clubName: "Grampians Hockey Club",
+    associationName: "Ballarat Hockey Association",
+    opponent: "Sebastopol United",
+    minute: 45,
+  },
+  {
+    id: "goal-3",
+    date: "2024-12-14",
+    gameId: "pg-3",
+    teamName: "Div1 Men",
+    clubName: "Grampians Hockey Club",
+    associationName: "Ballarat Hockey Association",
+    opponent: "Sebastopol United",
+    minute: 67,
+  },
+  {
+    id: "goal-4",
+    date: "2024-11-30",
+    gameId: "pg-5",
+    teamName: "Div2 Men",
+    clubName: "Grampians Hockey Club",
+    associationName: "Ballarat Hockey Association",
+    opponent: "Wendouree FC",
+    minute: 12,
+  },
+  {
+    id: "goal-5",
+    date: "2024-11-09",
+    gameId: "pg-8",
+    teamName: "Div2 Men",
+    clubName: "Grampians Hockey Club",
+    associationName: "Ballarat Hockey Association",
+    opponent: "Ballarat Tigers",
+    minute: 78,
+  },
+];
 
 // ============= GAME DATA =============
 
