@@ -44,6 +44,7 @@ import {
 } from "@/lib/mockData";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useTestRole } from "@/contexts/TestRoleContext";
 
 // Base nav items for all users
 const baseNavItems = [
@@ -59,6 +60,12 @@ const coachNavItems = [
   { path: "/team-management", label: "Team", icon: Users },
 ];
 
+// Club Admin nav items
+const clubAdminNavItems = [
+  { path: "/club-management", label: "Club", icon: Building2 },
+  { path: "/club-teams", label: "Teams", icon: Users },
+];
+
 // Association Admin nav items
 const associationAdminNavItems = [
   { path: "/association", label: "Association", icon: Building2 },
@@ -72,18 +79,26 @@ const systemAdminNavItems = [
   { path: "/settings", label: "System Settings", icon: Settings },
 ];
 
-// Get nav items based on user role (4-tier navigation)
+// Get nav items based on user role (5-tier navigation)
 const getNavItems = (role: Role) => {
   let items = [...baseNavItems];
   
-  if (role === "COACH" || role === "ASSOCIATION_ADMIN" || role === "SYSTEM_ADMIN") {
+  // Coach and above see coaching tools
+  if (["COACH", "CLUB_ADMIN", "ASSOCIATION_ADMIN", "SYSTEM_ADMIN"].includes(role)) {
     items = [...items, ...coachNavItems];
   }
   
-  if (role === "ASSOCIATION_ADMIN" || role === "SYSTEM_ADMIN") {
+  // Club Admin and above see club management
+  if (["CLUB_ADMIN", "ASSOCIATION_ADMIN", "SYSTEM_ADMIN"].includes(role)) {
+    items = [...items, ...clubAdminNavItems];
+  }
+  
+  // Association Admin and above see association management
+  if (["ASSOCIATION_ADMIN", "SYSTEM_ADMIN"].includes(role)) {
     items = [...items, ...associationAdminNavItems];
   }
   
+  // System Admin only
   if (role === "SYSTEM_ADMIN") {
     items = [...items, ...systemAdminNavItems];
   }
@@ -94,6 +109,7 @@ const getNavItems = (role: Role) => {
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { testRole } = useTestRole();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAssociationPopoverOpen, setIsAssociationPopoverOpen] = useState(false);
   
@@ -142,9 +158,8 @@ const AppLayout = () => {
     setSelectedTeam(teams[0]?.id || "");
   };
 
-  // Get user role - for demo, we'll use PLAYER but can be changed
-  const userRole: Role = currentUser.primaryTeam ? "PLAYER" : "PLAYER";
-  const navItems = getNavItems(userRole);
+  // Get user role from test context
+  const navItems = getNavItems(testRole);
   const unreadCount = mockNotifications.filter((n) => !n.read).length;
 
   const handleLogout = () => {
@@ -242,8 +257,15 @@ const AppLayout = () => {
             </Select>
           </div>
 
-          {/* Right: Notifications & User */}
+          {/* Right: Role Badge, Notifications & User */}
           <div className="flex items-center gap-3">
+            {/* Test Role Indicator */}
+            {testRole !== "PLAYER" && (
+              <Badge className="bg-amber-500 text-amber-950 text-xs hidden sm:flex">
+                Testing: {testRole.replace(/_/g, " ")}
+              </Badge>
+            )}
+
             <Popover>
               <PopoverTrigger asChild>
                 <Button

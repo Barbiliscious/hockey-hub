@@ -3,13 +3,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Lock, Camera } from "lucide-react";
+import { Save, Lock, Camera, Settings, Wrench } from "lucide-react";
 import {
   currentUser,
   getAssociationById,
   mockPlayerGames,
   mockPlayerGoals,
+  type Role,
 } from "@/lib/mockData";
 import { PersonalDetailsSection } from "@/components/profile/PersonalDetailsSection";
 import { TeamMembershipSection } from "@/components/profile/TeamMembershipSection";
@@ -17,9 +27,35 @@ import { PendingInvitesSection } from "@/components/profile/PendingInvitesSectio
 import { ProfilePhotoCropper } from "@/components/profile/ProfilePhotoCropper";
 import { StatsDetailDialog } from "@/components/profile/StatsDetailDialog";
 import { uploadAvatar, deleteAvatar } from "@/lib/uploadAvatar";
+import { useTestRole } from "@/contexts/TestRoleContext";
+
+const ALL_ROLES: Role[] = ["PLAYER", "COACH", "CLUB_ADMIN", "ASSOCIATION_ADMIN", "SYSTEM_ADMIN"];
+
+const getRoleDisplayName = (role: Role): string => {
+  const names: Record<Role, string> = {
+    PLAYER: "Player",
+    COACH: "Coach",
+    CLUB_ADMIN: "Club Admin",
+    ASSOCIATION_ADMIN: "Association Admin",
+    SYSTEM_ADMIN: "System Admin",
+  };
+  return names[role];
+};
+
+const getRoleEmoji = (role: Role): string => {
+  const emojis: Record<Role, string> = {
+    PLAYER: "🏃",
+    COACH: "📋",
+    CLUB_ADMIN: "🏢",
+    ASSOCIATION_ADMIN: "🏛️",
+    SYSTEM_ADMIN: "⚙️",
+  };
+  return emojis[role];
+};
 
 const Profile = () => {
   const { toast } = useToast();
+  const { testRole, setTestRole } = useTestRole();
   const [isEditing, setIsEditing] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(
     currentUser.avatarUrl
@@ -127,6 +163,14 @@ const Profile = () => {
     setStatsDialogOpen(true);
   };
 
+  const handleRoleChange = (role: Role) => {
+    setTestRole(role);
+    toast({
+      title: "Test Role Changed",
+      description: `Now viewing as ${getRoleDisplayName(role)}. Sidebar navigation updated.`,
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto animate-fade-in pb-8">
       {/* Header */}
@@ -157,6 +201,13 @@ const Profile = () => {
             {currentUser.primaryTeam.clubName} • {association.name}
           </p>
         )}
+        
+        {/* User Roles Display */}
+        <div className="flex flex-wrap gap-2 justify-center mt-3">
+          <Badge variant="secondary" className="text-xs">
+            {getRoleEmoji(testRole)} {getRoleDisplayName(testRole)}
+          </Badge>
+        </div>
       </div>
 
       {/* Pending Invites - Moved up */}
@@ -225,6 +276,40 @@ const Profile = () => {
             <Lock className="h-4 w-4 mr-2" />
             Change Password
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Developer Tools - Role Switcher */}
+      <Card className="border-dashed border-amber-500/50 bg-amber-500/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Wrench className="h-5 w-5 text-amber-500" />
+            Developer Tools
+            <Badge variant="outline" className="text-amber-600 border-amber-500 text-xs">
+              Testing Only
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="role-select">Active Role (for testing)</Label>
+            <Select value={testRole} onValueChange={(val) => handleRoleChange(val as Role)}>
+              <SelectTrigger id="role-select" className="w-full">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                {ALL_ROLES.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {getRoleEmoji(role)} {getRoleDisplayName(role)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Switching roles updates the sidebar navigation immediately. 
+              This is for UI testing only and does not bypass actual security.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

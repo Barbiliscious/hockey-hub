@@ -21,36 +21,41 @@ import NotFound from "./pages/NotFound";
 // Layout
 import AppLayout from "./components/layout/AppLayout";
 
+// Context
+import { TestRoleProvider } from "./contexts/TestRoleContext";
+
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/pending" element={<Pending />} />
+      <TestRoleProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/pending" element={<Pending />} />
 
-          {/* Protected Routes with App Layout */}
-          <Route element={<AppLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/games" element={<Games />} />
-            <Route path="/games/:id" element={<GameDetail />} />
-            <Route path="/games/:id/lineup" element={<Lineup />} />
-            <Route path="/roster" element={<Roster />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/profile" element={<Profile />} />
-          </Route>
+            {/* Protected Routes with App Layout */}
+            <Route element={<AppLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/games" element={<Games />} />
+              <Route path="/games/:id" element={<GameDetail />} />
+              <Route path="/games/:id/lineup" element={<Lineup />} />
+              <Route path="/roster" element={<Roster />} />
+              <Route path="/chat" element={<Chat />} />
+              <Route path="/profile" element={<Profile />} />
+            </Route>
 
-          {/* Catch-all */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+            {/* Catch-all */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TestRoleProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
