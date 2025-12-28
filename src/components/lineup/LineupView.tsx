@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Save, RotateCcw, Users, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 import { HockeyPitch } from "./HockeyPitch";
 import { PitchPosition } from "./PitchPosition";
 import { BenchArea } from "./BenchArea";
-import { PITCH_POSITIONS, POSITION_LABELS, type SelectedPlayer } from "./types";
+import { PlayerSelectDialog } from "./PlayerSelectDialog";
+import { PITCH_POSITIONS, type SelectedPlayer, type PitchPosition as PitchPositionType } from "./types";
 
 interface LineupViewProps {
   gameId: string;
@@ -54,6 +54,10 @@ export const LineupView = ({
     ]
   );
 
+  // Click-to-select dialog state
+  const [selectedPositionId, setSelectedPositionId] = useState<string | null>(null);
+  const [isPlayerSelectOpen, setIsPlayerSelectOpen] = useState(false);
+
   const [hasChanges, setHasChanges] = useState(false);
 
   const handleDrop = useCallback((playerId: string, positionId: string) => {
@@ -90,6 +94,33 @@ export const LineupView = ({
     setHasChanges(true);
   }, []);
 
+  // Click-to-select handlers
+  const handlePositionClick = useCallback((positionId: string) => {
+    setSelectedPositionId(positionId);
+    setIsPlayerSelectOpen(true);
+  }, []);
+
+  const handleSelectPlayer = useCallback((playerId: string) => {
+    if (!selectedPositionId) return;
+    handleDrop(playerId, selectedPositionId);
+    setIsPlayerSelectOpen(false);
+    setSelectedPositionId(null);
+  }, [selectedPositionId, handleDrop]);
+
+  const handleRemoveFromPosition = useCallback(() => {
+    const currentPlayer = players.find((p) => p.positionId === selectedPositionId);
+    if (currentPlayer) {
+      handleDropToBench(currentPlayer.id);
+    }
+    setIsPlayerSelectOpen(false);
+    setSelectedPositionId(null);
+  }, [selectedPositionId, players, handleDropToBench]);
+
+  const handleCloseDialog = useCallback(() => {
+    setIsPlayerSelectOpen(false);
+    setSelectedPositionId(null);
+  }, []);
+
   const handleSave = () => {
     // TODO: Save to API
     toast({
@@ -115,6 +146,15 @@ export const LineupView = ({
 
   const benchPlayers = players.filter((p) => !p.positionId || !p.isStarter);
   const startersCount = players.filter((p) => p.isStarter && p.positionId).length;
+
+  // For dialog: available players are those not on the pitch
+  const availablePlayers = players.filter((p) => !p.positionId);
+  const selectedPosition = selectedPositionId 
+    ? PITCH_POSITIONS.find((p) => p.id === selectedPositionId) || null 
+    : null;
+  const currentPlayerAtPosition = selectedPositionId 
+    ? getPlayerAtPosition(selectedPositionId) 
+    : null;
 
   // Choose backend based on device type
   const DndBackend = isTouchDevice() ? TouchBackend : HTML5Backend;
@@ -171,6 +211,8 @@ export const LineupView = ({
                 player={getPlayerAtPosition(position.id)}
                 onDrop={handleDrop}
                 isCoach={isCoach}
+                onPositionClick={handlePositionClick}
+                isSelected={selectedPositionId === position.id}
               />
             ))}
           </HockeyPitch>
@@ -203,6 +245,17 @@ export const LineupView = ({
               </Button>
             </div>
           )}
+
+          {/* Player Select Dialog */}
+          <PlayerSelectDialog
+            isOpen={isPlayerSelectOpen}
+            onClose={handleCloseDialog}
+            position={selectedPosition}
+            availablePlayers={availablePlayers}
+            currentPlayer={currentPlayerAtPosition}
+            onSelectPlayer={handleSelectPlayer}
+            onRemovePlayer={handleRemoveFromPosition}
+          />
         </CardContent>
       </Card>
     </DndProvider>
