@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,14 +19,37 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, ChevronLeft } from "lucide-react";
-import { mockAssociations, mockClubs, mockTeams } from "@/lib/mockData";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import heroBg from "@/assets/hero-bg.jpg";
+
+interface Association {
+  id: string;
+  name: string;
+}
+
+interface Club {
+  id: string;
+  name: string;
+  association_id: string;
+}
+
+interface Team {
+  id: string;
+  name: string;
+  club_id: string;
+  division: string | null;
+}
 
 const Signup = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signUp, user, loading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [associations, setAssociations] = useState<Association[]>([]);
+  const [clubs, setClubs] = useState<Club[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -37,15 +60,82 @@ const Signup = () => {
     teamId: "",
   });
 
-  const filteredClubs = mockClubs.filter(
-    (club) => club.associationId === formData.associationId
-  );
-  const filteredTeams = mockTeams.filter(
-    (team) => team.clubId === formData.clubId
-  );
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate("/dashboard");
+    }
+  }, [user, authLoading, navigate]);
+
+  // Fetch associations on mount
+  useEffect(() => {
+    const fetchAssociations = async () => {
+      const { data, error } = await supabase
+        .from("associations")
+        .select("id, name")
+        .order("name");
+      
+      if (!error && data) {
+        setAssociations(data);
+      }
+    };
+    fetchAssociations();
+  }, []);
+
+  // Fetch clubs when association changes
+  useEffect(() => {
+    const fetchClubs = async () => {
+      if (!formData.associationId) {
+        setClubs([]);
+        return;
+      }
+      
+      const { data, error } = await supabase
+        .from("clubs")
+        .select("id, name, association_id")
+        .eq("association_id", formData.associationId)
+        .order("name");
+      
+      if (!error && data) {
+        setClubs(data);
+      }
+    };
+    fetchClubs();
+  }, [formData.associationId]);
+
+  // Fetch teams when club changes
+  useEffect(() => {
+    const fetchTeams = async () => {
+      if (!formData.clubId) {
+        setTeams([]);
+        return;
+      }
+      
+      const { data, error } = await supabase
+        .from("teams")
+        .select("id, name, club_id, division")
+        .eq("club_id", formData.clubId)
+        .order("name");
+      
+      if (!error && data) {
+        setTeams(data);
+      }
+    };
+    fetchTeams();
+  }, [formData.clubId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validation
+    if (formData.password.length < 6) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 6 characters.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       toast({
@@ -58,17 +148,72 @@ const Signup = () => {
 
     setIsLoading(true);
 
-    // Simulate signup - will be replaced with Supabase auth
-    setTimeout(() => {
+    const { error } = await signUp(formData.email, formData.password);
+
+    if (error) {
       setIsLoading(false);
+      
+      // Handle specific error cases
+      let errorMessage = "An error occurred during signup.";
+      if (error.message.includes("User already registered")) {
+        errorMessage = "An account with this email already exists. Please sign in instead.";
+      } else if (error.message.includes("Invalid email")) {
+        errorMessage = "Please enter a valid email address.";
+      } else if (error.message.includes("Password")) {
+        errorMessage = error.message;
+      }
+      
       toast({
-        title: "Registration Submitted!",
-        description:
-          "Your account is pending approval. You'll be notified once approved.",
+        title: "Signup failed",
+        description: errorMessage,
+        variant: "destructive",
       });
-      navigate("/pending");
-    }, 1000);
+      return;
+    }
+
+    // Create team membership request if team selected
+    if (formData.teamId) {
+      // Get the new user's session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        // Update profile with name (stored in profiles table)
+        await supabase
+          .from("profiles")
+          .update({ 
+            // We don't have a name field yet, but the profile was auto-created
+          })
+          .eq("id", session.user.id);
+
+        // Create pending team membership
+        await supabase
+          .from("team_memberships")
+          .insert({
+            user_id: session.user.id,
+            team_id: formData.teamId,
+            status: "PENDING",
+            membership_type: "PRIMARY",
+          });
+      }
+    }
+
+    setIsLoading(false);
+    toast({
+      title: "Account created!",
+      description: formData.teamId 
+        ? "Your team membership is pending approval."
+        : "Welcome to Grampians Hockey!",
+    });
+    navigate("/dashboard");
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex">
@@ -154,6 +299,7 @@ const Signup = () => {
                           setFormData({ ...formData, password: e.target.value })
                         }
                         required
+                        minLength={6}
                       />
                       <button
                         type="button"
@@ -183,13 +329,14 @@ const Signup = () => {
                         })
                       }
                       required
+                      minLength={6}
                     />
                   </div>
                 </div>
 
                 <div className="pt-2">
                   <p className="text-sm text-muted-foreground mb-3">
-                    Select your team
+                    Select your team (optional)
                   </p>
                   <div className="space-y-3">
                     <div className="space-y-2">
@@ -209,7 +356,7 @@ const Signup = () => {
                           <SelectValue placeholder="Select association" />
                         </SelectTrigger>
                         <SelectContent>
-                          {mockAssociations.map((assoc) => (
+                          {associations.map((assoc) => (
                             <SelectItem key={assoc.id} value={assoc.id}>
                               {assoc.name}
                             </SelectItem>
@@ -235,7 +382,7 @@ const Signup = () => {
                           <SelectValue placeholder="Select club" />
                         </SelectTrigger>
                         <SelectContent>
-                          {filteredClubs.map((club) => (
+                          {clubs.map((club) => (
                             <SelectItem key={club.id} value={club.id}>
                               {club.name}
                             </SelectItem>
@@ -257,9 +404,9 @@ const Signup = () => {
                           <SelectValue placeholder="Select team" />
                         </SelectTrigger>
                         <SelectContent>
-                          {filteredTeams.map((team) => (
+                          {teams.map((team) => (
                             <SelectItem key={team.id} value={team.id}>
-                              {team.name} ({team.grade})
+                              {team.name} {team.division && `(${team.division})`}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -272,7 +419,7 @@ const Signup = () => {
                   type="submit"
                   className="w-full mt-6"
                   size="lg"
-                  disabled={isLoading || !formData.teamId}
+                  disabled={isLoading}
                 >
                   {isLoading ? "Creating account..." : "Create Account"}
                 </Button>
