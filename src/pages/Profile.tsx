@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,14 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Lock, Camera, Settings, Wrench } from "lucide-react";
-import {
-  currentUser,
-  getAssociationById,
-  mockPlayerGames,
-  mockPlayerGoals,
-  type Role,
-} from "@/lib/mockData";
+import { Save, Lock, Camera, Wrench } from "lucide-react";
 import { PersonalDetailsSection } from "@/components/profile/PersonalDetailsSection";
 import { TeamMembershipSection } from "@/components/profile/TeamMembershipSection";
 import { PendingInvitesSection } from "@/components/profile/PendingInvitesSection";
@@ -28,60 +21,228 @@ import { ProfilePhotoCropper } from "@/components/profile/ProfilePhotoCropper";
 import { StatsDetailDialog } from "@/components/profile/StatsDetailDialog";
 import { uploadAvatar, deleteAvatar } from "@/lib/uploadAvatar";
 import { useTestRole } from "@/contexts/TestRoleContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 
-const ALL_ROLES: Role[] = ["PLAYER", "COACH", "CLUB_ADMIN", "ASSOCIATION_ADMIN", "SYSTEM_ADMIN"];
+type AppRole = Database["public"]["Enums"]["app_role"];
+type MembershipType = Database["public"]["Enums"]["membership_type"];
 
-const getRoleDisplayName = (role: Role): string => {
-  const names: Record<Role, string> = {
+const ALL_ROLES: AppRole[] = ["PLAYER", "COACH", "TEAM_MANAGER", "CLUB_ADMIN", "ASSOCIATION_ADMIN"];
+
+const getRoleDisplayName = (role: AppRole): string => {
+  const names: Record<AppRole, string> = {
     PLAYER: "Player",
     COACH: "Coach",
+    TEAM_MANAGER: "Team Manager",
     CLUB_ADMIN: "Club Admin",
     ASSOCIATION_ADMIN: "Association Admin",
-    SYSTEM_ADMIN: "System Admin",
   };
   return names[role];
 };
 
-const getRoleEmoji = (role: Role): string => {
-  const emojis: Record<Role, string> = {
+const getRoleEmoji = (role: AppRole): string => {
+  const emojis: Record<AppRole, string> = {
     PLAYER: "🏃",
     COACH: "📋",
+    TEAM_MANAGER: "📊",
     CLUB_ADMIN: "🏢",
     ASSOCIATION_ADMIN: "🏛️",
-    SYSTEM_ADMIN: "⚙️",
   };
   return emojis[role];
 };
 
+interface ProfileData {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  suburb: string | null;
+  date_of_birth: string | null;
+  avatar_url: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  emergency_contact_relationship: string | null;
+}
+
+interface TeamMembershipData {
+  id: string;
+  team_id: string;
+  membership_type: MembershipType;
+  position: string | null;
+  jersey_number: number | null;
+  status: string;
+  team: {
+    id: string;
+    name: string;
+    club: {
+      id: string;
+      name: string;
+      association: {
+        id: string;
+        name: string;
+      };
+    };
+  };
+}
+
 const Profile = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const { testRole, setTestRole } = useTestRole();
+  
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [memberships, setMemberships] = useState<TeamMembershipData[]>([]);
+  const [loading, setLoading] = useState(true);
+  
   const [isEditing, setIsEditing] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(
-    currentUser.avatarUrl
-  );
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const [isAvatarLoading, setIsAvatarLoading] = useState(false);
   const [cropperOpen, setCropperOpen] = useState(false);
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
-  const [statsDialogType, setStatsDialogType] = useState<"games" | "goals">(
-    "games"
-  );
+  const [statsDialogType, setStatsDialogType] = useState<"games" | "goals">("games");
+  
   const [formData, setFormData] = useState({
-    name: currentUser.name,
-    phone: currentUser.phone,
-    suburb: currentUser.suburb,
-    dateOfBirth: currentUser.dateOfBirth,
-    emergencyContact: { ...currentUser.emergencyContact },
+    name: "",
+    phone: "",
+    suburb: "",
+    dateOfBirth: "",
+    emergencyContact: {
+      name: "",
+      phone: "",
+      relationship: "",
+    },
   });
 
-  const association = getAssociationById(currentUser.associationId);
+  // Fetch profile and memberships
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user) return;
 
-  const handleSave = () => {
-    setIsEditing(false);
-    toast({
-      title: "Profile Updated",
-      description: "Your profile has been saved successfully.",
-    });
+      setLoading(true);
+
+      // Fetch profile
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError) {
+        console.error("Error fetching profile:", profileError);
+      } else if (profileData) {
+        setProfile(profileData);
+        setAvatarUrl(profileData.avatar_url || undefined);
+        
+        const fullName = [profileData.first_name, profileData.last_name]
+          .filter(Boolean)
+          .join(" ");
+        
+        setFormData({
+          name: fullName,
+          phone: profileData.phone || "",
+          suburb: profileData.suburb || "",
+          dateOfBirth: profileData.date_of_birth || "",
+          emergencyContact: {
+            name: profileData.emergency_contact_name || "",
+            phone: profileData.emergency_contact_phone || "",
+            relationship: profileData.emergency_contact_relationship || "",
+          },
+        });
+      }
+
+      // Fetch team memberships with team, club, association details
+      const { data: membershipData, error: membershipError } = await supabase
+        .from("team_memberships")
+        .select(`
+          id,
+          team_id,
+          membership_type,
+          position,
+          jersey_number,
+          status,
+          teams:team_id (
+            id,
+            name,
+            clubs:club_id (
+              id,
+              name,
+              associations:association_id (
+                id,
+                name
+              )
+            )
+          )
+        `)
+        .eq("user_id", user.id);
+
+      if (membershipError) {
+        console.error("Error fetching memberships:", membershipError);
+      } else if (membershipData) {
+        // Transform the data to match our interface
+        const transformed = membershipData.map((m: any) => ({
+          id: m.id,
+          team_id: m.team_id,
+          membership_type: m.membership_type,
+          position: m.position,
+          jersey_number: m.jersey_number,
+          status: m.status,
+          team: {
+            id: m.teams?.id || "",
+            name: m.teams?.name || "",
+            club: {
+              id: m.teams?.clubs?.id || "",
+              name: m.teams?.clubs?.name || "",
+              association: {
+                id: m.teams?.clubs?.associations?.id || "",
+                name: m.teams?.clubs?.associations?.name || "",
+              },
+            },
+          },
+        }));
+        setMemberships(transformed);
+      }
+
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [user]);
+
+  const handleSave = async () => {
+    if (!user) return;
+
+    const nameParts = formData.name.trim().split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        phone: formData.phone || null,
+        suburb: formData.suburb || null,
+        date_of_birth: formData.dateOfBirth || null,
+        emergency_contact_name: formData.emergencyContact.name || null,
+        emergency_contact_phone: formData.emergencyContact.phone || null,
+        emergency_contact_relationship: formData.emergencyContact.relationship || null,
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update profile.",
+        variant: "destructive",
+      });
+    } else {
+      setIsEditing(false);
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been saved successfully.",
+      });
+    }
   };
 
   const handleFormChange = (data: Partial<typeof formData>) => {
@@ -110,21 +271,28 @@ const Profile = () => {
   };
 
   const handleAvatarSave = async (blob: Blob) => {
+    if (!user) return;
+    
     setIsAvatarLoading(true);
-    // Optimistic update
     const tempUrl = URL.createObjectURL(blob);
     setAvatarUrl(tempUrl);
 
     try {
-      const newUrl = await uploadAvatar(currentUser.id, blob);
+      const newUrl = await uploadAvatar(user.id, blob);
       setAvatarUrl(newUrl);
+      
+      // Update profile with new avatar URL
+      await supabase
+        .from("profiles")
+        .update({ avatar_url: newUrl })
+        .eq("id", user.id);
+      
       toast({
         title: "Photo Updated",
         description: "Your profile photo has been updated.",
       });
     } catch (error) {
-      // Revert on error
-      setAvatarUrl(currentUser.avatarUrl);
+      setAvatarUrl(profile?.avatar_url || undefined);
       toast({
         title: "Upload Failed",
         description: "Failed to upload photo. Please try again.",
@@ -136,12 +304,21 @@ const Profile = () => {
   };
 
   const handleAvatarDelete = async () => {
+    if (!user) return;
+    
     setIsAvatarLoading(true);
     const previousUrl = avatarUrl;
     setAvatarUrl(undefined);
 
     try {
-      await deleteAvatar(currentUser.id);
+      await deleteAvatar(user.id);
+      
+      // Update profile to remove avatar URL
+      await supabase
+        .from("profiles")
+        .update({ avatar_url: null })
+        .eq("id", user.id);
+      
       toast({
         title: "Photo Removed",
         description: "Your profile photo has been removed.",
@@ -163,12 +340,80 @@ const Profile = () => {
     setStatsDialogOpen(true);
   };
 
-  const handleRoleChange = (role: Role) => {
-    setTestRole(role);
+  const handleRoleChange = (role: AppRole) => {
+    setTestRole(role as any);
     toast({
       title: "Test Role Changed",
       description: `Now viewing as ${getRoleDisplayName(role)}. Sidebar navigation updated.`,
     });
+  };
+
+  // Transform memberships for TeamMembershipSection
+  const primaryMembership = memberships.find((m) => m.membership_type === "PRIMARY" && m.status === "APPROVED");
+  const extraMemberships = memberships.filter((m) => m.membership_type !== "PRIMARY" && m.status === "APPROVED");
+  const pendingMemberships = memberships.filter((m) => m.status === "PENDING");
+
+  const primaryTeam = primaryMembership
+    ? {
+        teamId: primaryMembership.team_id,
+        teamName: primaryMembership.team.name,
+        clubId: primaryMembership.team.club.id,
+        clubName: primaryMembership.team.club.name,
+        associationId: primaryMembership.team.club.association.id,
+        associationName: primaryMembership.team.club.association.name,
+        type: "PRIMARY" as const,
+        position: primaryMembership.position || undefined,
+        jerseyNumber: primaryMembership.jersey_number || undefined,
+      }
+    : null;
+
+  const extraTeams = extraMemberships.map((m) => ({
+    teamId: m.team_id,
+    teamName: m.team.name,
+    clubId: m.team.club.id,
+    clubName: m.team.club.name,
+    associationId: m.team.club.association.id,
+    associationName: m.team.club.association.name,
+    type: m.membership_type as "PRIMARY" | "PERMANENT" | "FILL_IN",
+    position: m.position || undefined,
+    jerseyNumber: m.jersey_number || undefined,
+  }));
+
+  const displayName = formData.name || user?.email || "User";
+  const initials = displayName.charAt(0).toUpperCase();
+
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-2xl mx-auto animate-fade-in pb-8">
+        <div className="text-center">
+          <Skeleton className="w-24 h-24 rounded-full mx-auto mb-4" />
+          <Skeleton className="h-8 w-48 mx-auto mb-2" />
+          <Skeleton className="h-4 w-32 mx-auto" />
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
+        <Skeleton className="h-48" />
+      </div>
+    );
+  }
+
+  // Map profile data for PersonalDetailsSection
+  const profileForSection = {
+    id: user?.id || "",
+    name: formData.name,
+    email: user?.email || "",
+    phone: formData.phone,
+    suburb: formData.suburb,
+    dateOfBirth: formData.dateOfBirth,
+    emergencyContact: formData.emergencyContact,
+    associationId: primaryTeam?.associationId || "",
+    primaryTeam,
+    extraTeams: [],
+    pendingInvites: [],
+    pendingPrimaryChangeRequest: null,
   };
 
   return (
@@ -183,9 +428,9 @@ const Profile = () => {
             <Skeleton className="w-24 h-24 rounded-full" />
           ) : (
             <Avatar className="w-24 h-24 border-2 border-border">
-              <AvatarImage src={avatarUrl} alt={currentUser.name} />
+              <AvatarImage src={avatarUrl} alt={displayName} />
               <AvatarFallback className="text-4xl font-display bg-primary text-primary-foreground">
-                {currentUser.name.charAt(0)}
+                {initials}
               </AvatarFallback>
             </Avatar>
           )}
@@ -194,39 +439,46 @@ const Profile = () => {
           </div>
         </div>
         <h1 className="font-display text-3xl text-foreground">
-          {currentUser.name}
+          {displayName}
         </h1>
-        {currentUser.primaryTeam && association && (
+        {primaryTeam && (
           <p className="text-muted-foreground mt-2">
-            {currentUser.primaryTeam.clubName} • {association.name}
+            {primaryTeam.clubName} • {primaryTeam.associationName}
           </p>
+        )}
+        
+        {/* Pending memberships notice */}
+        {pendingMemberships.length > 0 && (
+          <div className="mt-3">
+            <Badge variant="secondary" className="text-xs">
+              {pendingMemberships.length} pending membership{pendingMemberships.length > 1 ? "s" : ""}
+            </Badge>
+          </div>
         )}
         
         {/* User Roles Display */}
         <div className="flex flex-wrap gap-2 justify-center mt-3">
           <Badge variant="secondary" className="text-xs">
-            {getRoleEmoji(testRole)} {getRoleDisplayName(testRole)}
+            {getRoleEmoji(testRole as AppRole)} {getRoleDisplayName(testRole as AppRole)}
           </Badge>
         </div>
       </div>
 
-      {/* Pending Invites - Moved up */}
+      {/* Pending Invites */}
       <PendingInvitesSection
-        invites={currentUser.pendingInvites}
+        invites={[]}
         onAccept={handleAcceptInvite}
         onDecline={handleDeclineInvite}
       />
 
-      {/* Stats Cards - Clickable */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-4">
         <Card
           className="text-center cursor-pointer hover:bg-muted/50 transition-colors"
           onClick={() => openStatsDialog("games")}
         >
           <CardContent className="pt-5">
-            <p className="font-display text-3xl text-accent">
-              {mockPlayerGames.length}
-            </p>
+            <p className="font-display text-3xl text-accent">0</p>
             <p className="text-xs text-muted-foreground">Games Played</p>
           </CardContent>
         </Card>
@@ -235,9 +487,7 @@ const Profile = () => {
           onClick={() => openStatsDialog("goals")}
         >
           <CardContent className="pt-5">
-            <p className="font-display text-3xl text-accent">
-              {mockPlayerGoals.length}
-            </p>
+            <p className="font-display text-3xl text-accent">0</p>
             <p className="text-xs text-muted-foreground">Goals</p>
           </CardContent>
         </Card>
@@ -251,15 +501,15 @@ const Profile = () => {
 
       {/* Team Memberships */}
       <TeamMembershipSection
-        primaryTeam={currentUser.primaryTeam}
-        extraTeams={currentUser.extraTeams}
-        pendingChangeRequest={currentUser.pendingPrimaryChangeRequest}
+        primaryTeam={primaryTeam}
+        extraTeams={extraTeams}
+        pendingChangeRequest={null}
         onRequestChange={handleRequestPrimaryChange}
       />
 
       {/* Personal Details with Edit */}
       <PersonalDetailsSection
-        profile={currentUser}
+        profile={profileForSection}
         isEditing={isEditing}
         formData={formData}
         onFormChange={handleFormChange}
@@ -293,7 +543,7 @@ const Profile = () => {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="role-select">Active Role (for testing)</Label>
-            <Select value={testRole} onValueChange={(val) => handleRoleChange(val as Role)}>
+            <Select value={testRole} onValueChange={(val) => handleRoleChange(val as AppRole)}>
               <SelectTrigger id="role-select" className="w-full">
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
@@ -327,8 +577,8 @@ const Profile = () => {
         open={statsDialogOpen}
         onOpenChange={setStatsDialogOpen}
         type={statsDialogType}
-        games={mockPlayerGames}
-        goals={mockPlayerGoals}
+        games={[]}
+        goals={[]}
       />
     </div>
   );

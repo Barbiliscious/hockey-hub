@@ -171,21 +171,26 @@ const Signup = () => {
       return;
     }
 
-    // Create team membership request if team selected
-    if (formData.teamId) {
-      // Get the new user's session
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        // Update profile with name (stored in profiles table)
-        await supabase
-          .from("profiles")
-          .update({ 
-            // We don't have a name field yet, but the profile was auto-created
-          })
-          .eq("id", session.user.id);
+    // Get the new user's session and update profile/team
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session?.user) {
+      // Parse name into first_name and last_name
+      const nameParts = formData.name.trim().split(" ");
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
 
-        // Create pending team membership
+      // Update profile with name
+      await supabase
+        .from("profiles")
+        .update({ 
+          first_name: firstName,
+          last_name: lastName,
+        })
+        .eq("id", session.user.id);
+
+      // Create pending team membership if team selected
+      if (formData.teamId) {
         await supabase
           .from("team_memberships")
           .insert({

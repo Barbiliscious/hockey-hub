@@ -178,7 +178,9 @@ export type Database = {
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
           emergency_contact_relationship: string | null
+          first_name: string | null
           id: string
+          last_name: string | null
           phone: string | null
           suburb: string | null
           updated_at: string
@@ -190,7 +192,9 @@ export type Database = {
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           emergency_contact_relationship?: string | null
+          first_name?: string | null
           id: string
+          last_name?: string | null
           phone?: string | null
           suburb?: string | null
           updated_at?: string
@@ -202,7 +206,9 @@ export type Database = {
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           emergency_contact_relationship?: string | null
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           phone?: string | null
           suburb?: string | null
           updated_at?: string
