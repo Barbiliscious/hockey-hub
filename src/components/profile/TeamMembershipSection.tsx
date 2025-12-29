@@ -1,14 +1,39 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, RefreshCw, Calendar, Shirt } from "lucide-react";
-import type { TeamMembership, PrimaryChangeRequest } from "@/lib/mockData";
+import { Users, RefreshCw, Calendar, Shirt, Plus, X } from "lucide-react";
+
+interface TeamMembership {
+  teamId: string;
+  teamName: string;
+  clubId: string;
+  clubName: string;
+  associationId: string;
+  associationName: string;
+  type: "PRIMARY" | "PERMANENT" | "FILL_IN";
+  position?: string;
+  jerseyNumber?: number;
+  gameDate?: string;
+}
+
+interface PendingChangeRequest {
+  id: string;
+  fromTeamId: string | null;
+  fromTeamName: string | null;
+  toTeamId: string;
+  toTeamName: string;
+  status: string;
+  requestedAt: string;
+}
 
 interface TeamMembershipSectionProps {
   primaryTeam: TeamMembership | null;
   extraTeams: TeamMembership[];
-  pendingChangeRequest: PrimaryChangeRequest | null;
+  pendingChangeRequest: PendingChangeRequest | null;
   onRequestChange: () => void;
+  onCancelRequest?: () => void;
+  onSetPrimaryTeam?: () => void;
+  hasApprovedTeams: boolean;
 }
 
 export const TeamMembershipSection = ({
@@ -16,6 +41,9 @@ export const TeamMembershipSection = ({
   extraTeams,
   pendingChangeRequest,
   onRequestChange,
+  onCancelRequest,
+  onSetPrimaryTeam,
+  hasApprovedTeams,
 }: TeamMembershipSectionProps) => {
   return (
     <div className="space-y-4">
@@ -27,6 +55,12 @@ export const TeamMembershipSection = ({
             <Button variant="outline" size="sm" onClick={onRequestChange}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Request Change
+            </Button>
+          )}
+          {!primaryTeam && !pendingChangeRequest && hasApprovedTeams && onSetPrimaryTeam && (
+            <Button variant="outline" size="sm" onClick={onSetPrimaryTeam}>
+              <Plus className="h-4 w-4 mr-2" />
+              Set Primary Team
             </Button>
           )}
         </CardHeader>
@@ -61,7 +95,9 @@ export const TeamMembershipSection = ({
               <Users className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
               <p className="text-muted-foreground">No primary team</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Accept a team invite to set your primary team
+                {hasApprovedTeams
+                  ? "Click 'Set Primary Team' to choose your main team"
+                  : "Accept a team invite to set your primary team"}
               </p>
             </div>
           )}
@@ -69,15 +105,29 @@ export const TeamMembershipSection = ({
           {/* Pending Change Request */}
           {pendingChangeRequest && (
             <div className="mt-4 p-3 bg-muted rounded-lg border border-border">
-              <div className="flex items-center gap-2">
-                <RefreshCw className="h-4 w-4 text-accent animate-spin" />
-                <span className="text-sm font-medium text-foreground">
-                  Change Request Pending
-                </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 text-accent animate-spin" />
+                  <span className="text-sm font-medium text-foreground">
+                    Change Request Pending
+                  </span>
+                </div>
+                {onCancelRequest && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={onCancelRequest}
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Cancel
+                  </Button>
+                )}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Requesting to change from {pendingChangeRequest.fromTeamName} to{" "}
-                {pendingChangeRequest.toTeamName}
+                {pendingChangeRequest.fromTeamName
+                  ? `Requesting to change from ${pendingChangeRequest.fromTeamName} to ${pendingChangeRequest.toTeamName}`
+                  : `Requesting to set ${pendingChangeRequest.toTeamName} as primary`}
               </p>
             </div>
           )}

@@ -19,6 +19,7 @@ import { TeamMembershipSection } from "@/components/profile/TeamMembershipSectio
 import { PendingInvitesSection } from "@/components/profile/PendingInvitesSection";
 import { ProfilePhotoCropper } from "@/components/profile/ProfilePhotoCropper";
 import { StatsDetailDialog } from "@/components/profile/StatsDetailDialog";
+import { SetPrimaryTeamDialog } from "@/components/profile/SetPrimaryTeamDialog";
 import { uploadAvatar, deleteAvatar } from "@/lib/uploadAvatar";
 import { useTestRole } from "@/contexts/TestRoleContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -86,6 +87,16 @@ interface TeamMembershipData {
   };
 }
 
+interface PrimaryChangeRequestData {
+  id: string;
+  from_team_id: string | null;
+  to_team_id: string;
+  status: string;
+  requested_at: string;
+  from_team: { id: string; name: string } | null;
+  to_team: { id: string; name: string };
+}
+
 const Profile = () => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -93,6 +104,7 @@ const Profile = () => {
   
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [memberships, setMemberships] = useState<TeamMembershipData[]>([]);
+  const [pendingChangeRequest, setPendingChangeRequest] = useState<PrimaryChangeRequestData | null>(null);
   const [loading, setLoading] = useState(true);
   
   const [isEditing, setIsEditing] = useState(false);
@@ -101,6 +113,7 @@ const Profile = () => {
   const [cropperOpen, setCropperOpen] = useState(false);
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
   const [statsDialogType, setStatsDialogType] = useState<"games" | "goals">("games");
+  const [setPrimaryDialogOpen, setSetPrimaryDialogOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -114,98 +127,149 @@ const Profile = () => {
     },
   });
 
-  // Fetch profile and memberships
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return;
+  // Fetch profile, memberships, and pending change requests
+  const fetchData = async () => {
+    if (!user) return;
 
-      setLoading(true);
+    setLoading(true);
 
-      // Fetch profile
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+    // Fetch profile
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
 
-      if (profileError) {
-        console.error("Error fetching profile:", profileError);
-      } else if (profileData) {
-        setProfile(profileData);
-        setAvatarUrl(profileData.avatar_url || undefined);
-        
-        const fullName = [profileData.first_name, profileData.last_name]
-          .filter(Boolean)
-          .join(" ");
-        
-        setFormData({
-          name: fullName,
-          phone: profileData.phone || "",
-          suburb: profileData.suburb || "",
-          dateOfBirth: profileData.date_of_birth || "",
-          emergencyContact: {
-            name: profileData.emergency_contact_name || "",
-            phone: profileData.emergency_contact_phone || "",
-            relationship: profileData.emergency_contact_relationship || "",
-          },
-        });
-      }
+    if (profileError) {
+      console.error("Error fetching profile:", profileError);
+    } else if (profileData) {
+      setProfile(profileData);
+      setAvatarUrl(profileData.avatar_url || undefined);
+      
+      const fullName = [profileData.first_name, profileData.last_name]
+        .filter(Boolean)
+        .join(" ");
+      
+      setFormData({
+        name: fullName,
+        phone: profileData.phone || "",
+        suburb: profileData.suburb || "",
+        dateOfBirth: profileData.date_of_birth || "",
+        emergencyContact: {
+          name: profileData.emergency_contact_name || "",
+          phone: profileData.emergency_contact_phone || "",
+          relationship: profileData.emergency_contact_relationship || "",
+        },
+      });
+    }
 
-      // Fetch team memberships with team, club, association details
-      const { data: membershipData, error: membershipError } = await supabase
-        .from("team_memberships")
-        .select(`
+    // Fetch team memberships with team, club, association details
+    const { data: membershipData, error: membershipError } = await supabase
+      .from("team_memberships")
+      .select(`
+        id,
+        team_id,
+        membership_type,
+        position,
+        jersey_number,
+        status,
+        teams:team_id (
           id,
-          team_id,
-          membership_type,
-          position,
-          jersey_number,
-          status,
-          teams:team_id (
+          name,
+          clubs:club_id (
             id,
             name,
-            clubs:club_id (
+            associations:association_id (
               id,
-              name,
-              associations:association_id (
-                id,
-                name
-              )
+              name
             )
           )
-        `)
-        .eq("user_id", user.id);
+        )
+      `)
+      .eq("user_id", user.id);
 
-      if (membershipError) {
-        console.error("Error fetching memberships:", membershipError);
-      } else if (membershipData) {
-        // Transform the data to match our interface
-        const transformed = membershipData.map((m: any) => ({
-          id: m.id,
-          team_id: m.team_id,
-          membership_type: m.membership_type,
-          position: m.position,
-          jersey_number: m.jersey_number,
-          status: m.status,
-          team: {
-            id: m.teams?.id || "",
-            name: m.teams?.name || "",
-            club: {
-              id: m.teams?.clubs?.id || "",
-              name: m.teams?.clubs?.name || "",
-              association: {
-                id: m.teams?.clubs?.associations?.id || "",
-                name: m.teams?.clubs?.associations?.name || "",
-              },
+    if (membershipError) {
+      console.error("Error fetching memberships:", membershipError);
+    } else if (membershipData) {
+      // Transform the data to match our interface
+      const transformed = membershipData.map((m: any) => ({
+        id: m.id,
+        team_id: m.team_id,
+        membership_type: m.membership_type,
+        position: m.position,
+        jersey_number: m.jersey_number,
+        status: m.status,
+        team: {
+          id: m.teams?.id || "",
+          name: m.teams?.name || "",
+          club: {
+            id: m.teams?.clubs?.id || "",
+            name: m.teams?.clubs?.name || "",
+            association: {
+              id: m.teams?.clubs?.associations?.id || "",
+              name: m.teams?.clubs?.associations?.name || "",
             },
           },
-        }));
-        setMemberships(transformed);
+        },
+      }));
+      setMemberships(transformed);
+    }
+
+    // Fetch pending primary change requests
+    const { data: changeRequestData, error: changeRequestError } = await supabase
+      .from("primary_change_requests")
+      .select(`
+        id,
+        from_team_id,
+        to_team_id,
+        status,
+        requested_at
+      `)
+      .eq("user_id", user.id)
+      .eq("status", "PENDING")
+      .maybeSingle();
+
+    if (changeRequestError) {
+      console.error("Error fetching change requests:", changeRequestError);
+      setPendingChangeRequest(null);
+    } else if (changeRequestData) {
+      // Fetch team names separately to avoid the multiple FK issue
+      let fromTeam = null;
+      let toTeam = null;
+
+      if (changeRequestData.from_team_id) {
+        const { data: fromTeamData } = await supabase
+          .from("teams")
+          .select("id, name")
+          .eq("id", changeRequestData.from_team_id)
+          .single();
+        fromTeam = fromTeamData;
       }
 
-      setLoading(false);
-    };
+      const { data: toTeamData } = await supabase
+        .from("teams")
+        .select("id, name")
+        .eq("id", changeRequestData.to_team_id)
+        .single();
+      toTeam = toTeamData;
 
+      setPendingChangeRequest({
+        id: changeRequestData.id,
+        from_team_id: changeRequestData.from_team_id,
+        to_team_id: changeRequestData.to_team_id,
+        status: changeRequestData.status,
+        requested_at: changeRequestData.requested_at,
+        from_team: fromTeam,
+        to_team: toTeam || { id: changeRequestData.to_team_id, name: "Unknown Team" },
+      });
+    } else {
+      setPendingChangeRequest(null);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
     fetchData();
   }, [user]);
 
@@ -250,24 +314,129 @@ const Profile = () => {
   };
 
   const handleRequestPrimaryChange = () => {
-    toast({
-      title: "Feature Coming Soon",
-      description: "Primary team change requests will be available soon.",
-    });
+    setSetPrimaryDialogOpen(true);
   };
 
-  const handleAcceptInvite = (inviteId: string) => {
-    toast({
-      title: "Invite Accepted",
-      description: "You've been added to the team.",
-    });
+  const handleSetPrimaryTeam = async (teamId: string) => {
+    if (!user) return;
+
+    const hasPrimary = memberships.some(
+      (m) => m.membership_type === "PRIMARY" && m.status === "APPROVED"
+    );
+
+    if (hasPrimary) {
+      // Create a change request
+      const primaryMembership = memberships.find(
+        (m) => m.membership_type === "PRIMARY" && m.status === "APPROVED"
+      );
+
+      const { error } = await supabase.from("primary_change_requests").insert({
+        user_id: user.id,
+        from_team_id: primaryMembership?.team_id || null,
+        to_team_id: teamId,
+        status: "PENDING",
+      });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to submit change request.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Request Submitted",
+          description: "Your primary team change request has been submitted for approval.",
+        });
+        fetchData();
+      }
+    } else {
+      // No primary team - directly update the membership type
+      const { error } = await supabase
+        .from("team_memberships")
+        .update({ membership_type: "PRIMARY" })
+        .eq("user_id", user.id)
+        .eq("team_id", teamId);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to set primary team.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Primary Team Set",
+          description: "Your primary team has been updated.",
+        });
+        fetchData();
+      }
+    }
   };
 
-  const handleDeclineInvite = (inviteId: string) => {
-    toast({
-      title: "Invite Declined",
-      description: "The coach has been notified.",
-    });
+  const handleCancelChangeRequest = async () => {
+    if (!user || !pendingChangeRequest) return;
+
+    const { error } = await supabase
+      .from("primary_change_requests")
+      .update({ status: "CANCELLED" })
+      .eq("id", pendingChangeRequest.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to cancel request.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Request Cancelled",
+        description: "Your primary team change request has been cancelled.",
+      });
+      fetchData();
+    }
+  };
+
+  const handleAcceptInvite = async (membershipId: string) => {
+    const { error } = await supabase
+      .from("team_memberships")
+      .update({ status: "APPROVED" })
+      .eq("id", membershipId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to accept invite.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Invite Accepted",
+        description: "You've been added to the team.",
+      });
+      fetchData();
+    }
+  };
+
+  const handleDeclineInvite = async (membershipId: string) => {
+    const { error } = await supabase
+      .from("team_memberships")
+      .update({ status: "DECLINED" })
+      .eq("id", membershipId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to decline invite.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Invite Declined",
+        description: "The coach has been notified.",
+      });
+      fetchData();
+    }
   };
 
   const handleAvatarSave = async (blob: Blob) => {
@@ -349,8 +518,9 @@ const Profile = () => {
   };
 
   // Transform memberships for TeamMembershipSection
-  const primaryMembership = memberships.find((m) => m.membership_type === "PRIMARY" && m.status === "APPROVED");
-  const extraMemberships = memberships.filter((m) => m.membership_type !== "PRIMARY" && m.status === "APPROVED");
+  const approvedMemberships = memberships.filter((m) => m.status === "APPROVED");
+  const primaryMembership = approvedMemberships.find((m) => m.membership_type === "PRIMARY");
+  const extraMemberships = approvedMemberships.filter((m) => m.membership_type !== "PRIMARY");
   const pendingMemberships = memberships.filter((m) => m.status === "PENDING");
 
   const primaryTeam = primaryMembership
@@ -377,6 +547,42 @@ const Profile = () => {
     type: m.membership_type as "PRIMARY" | "PERMANENT" | "FILL_IN",
     position: m.position || undefined,
     jerseyNumber: m.jersey_number || undefined,
+  }));
+
+  // Transform pending change request for display
+  const pendingChangeRequestForDisplay = pendingChangeRequest
+    ? {
+        id: pendingChangeRequest.id,
+        fromTeamId: pendingChangeRequest.from_team_id,
+        fromTeamName: pendingChangeRequest.from_team?.name || null,
+        toTeamId: pendingChangeRequest.to_team_id,
+        toTeamName: pendingChangeRequest.to_team?.name || "",
+        status: pendingChangeRequest.status,
+        requestedAt: pendingChangeRequest.requested_at,
+      }
+    : null;
+
+  // Teams available for setting as primary (approved non-primary teams)
+  const teamsForPrimarySelection = approvedMemberships.map((m) => ({
+    id: m.team_id,
+    teamName: m.team.name,
+    clubName: m.team.club.name,
+    associationName: m.team.club.association.name,
+    position: m.position || undefined,
+    jerseyNumber: m.jersey_number || undefined,
+  }));
+
+  // Transform pending memberships for invites section
+  const pendingInvites = pendingMemberships.map((m) => ({
+    id: m.id,
+    teamId: m.team_id,
+    teamName: m.team.name,
+    clubName: m.team.club.name,
+    type: m.membership_type === "FILL_IN" ? ("FILL_IN" as const) : ("PERMANENT" as const),
+    sentBy: "Coach",
+    sentAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    status: "PENDING" as const,
   }));
 
   const displayName = formData.name || user?.email || "User";
@@ -466,7 +672,7 @@ const Profile = () => {
 
       {/* Pending Invites */}
       <PendingInvitesSection
-        invites={[]}
+        invites={pendingInvites}
         onAccept={handleAcceptInvite}
         onDecline={handleDeclineInvite}
       />
@@ -503,8 +709,11 @@ const Profile = () => {
       <TeamMembershipSection
         primaryTeam={primaryTeam}
         extraTeams={extraTeams}
-        pendingChangeRequest={null}
+        pendingChangeRequest={pendingChangeRequestForDisplay}
         onRequestChange={handleRequestPrimaryChange}
+        onCancelRequest={handleCancelChangeRequest}
+        onSetPrimaryTeam={() => setSetPrimaryDialogOpen(true)}
+        hasApprovedTeams={approvedMemberships.length > 0}
       />
 
       {/* Personal Details with Edit */}
@@ -579,6 +788,16 @@ const Profile = () => {
         type={statsDialogType}
         games={[]}
         goals={[]}
+      />
+
+      {/* Set Primary Team Dialog */}
+      <SetPrimaryTeamDialog
+        open={setPrimaryDialogOpen}
+        onOpenChange={setSetPrimaryDialogOpen}
+        teams={teamsForPrimarySelection}
+        currentPrimaryTeamId={primaryMembership?.team_id}
+        onConfirm={handleSetPrimaryTeam}
+        isChangingPrimary={!!primaryMembership}
       />
     </div>
   );

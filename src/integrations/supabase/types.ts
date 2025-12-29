@@ -170,6 +170,60 @@ export type Database = {
           },
         ]
       }
+      primary_change_requests: {
+        Row: {
+          created_at: string
+          from_team_id: string | null
+          id: string
+          requested_at: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          to_team_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          from_team_id?: string | null
+          id?: string
+          requested_at?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          to_team_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          from_team_id?: string | null
+          id?: string
+          requested_at?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          to_team_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "primary_change_requests_from_team_id_fkey"
+            columns: ["from_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "primary_change_requests_to_team_id_fkey"
+            columns: ["to_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -219,6 +273,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          invited_by: string | null
           jersey_number: number | null
           membership_type: Database["public"]["Enums"]["membership_type"]
           position: string | null
@@ -230,6 +285,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          invited_by?: string | null
           jersey_number?: number | null
           membership_type?: Database["public"]["Enums"]["membership_type"]
           position?: string | null
@@ -241,6 +297,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          invited_by?: string | null
           jersey_number?: number | null
           membership_type?: Database["public"]["Enums"]["membership_type"]
           position?: string | null
