@@ -14,6 +14,162 @@ export type Database = {
   }
   public: {
     Tables: {
+      associations: {
+        Row: {
+          abbreviation: string | null
+          created_at: string
+          id: string
+          logo_url: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          abbreviation?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          abbreviation?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      clubs: {
+        Row: {
+          abbreviation: string | null
+          association_id: string
+          created_at: string
+          id: string
+          logo_url: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          abbreviation?: string | null
+          association_id: string
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          abbreviation?: string | null
+          association_id?: string
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clubs_association_id_fkey"
+            columns: ["association_id"]
+            isOneToOne: false
+            referencedRelation: "associations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      games: {
+        Row: {
+          away_score: number | null
+          created_at: string
+          game_date: string
+          home_score: number | null
+          id: string
+          is_home: boolean
+          location: string | null
+          notes: string | null
+          opponent_name: string
+          status: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          away_score?: number | null
+          created_at?: string
+          game_date: string
+          home_score?: number | null
+          id?: string
+          is_home?: boolean
+          location?: string | null
+          notes?: string | null
+          opponent_name: string
+          status?: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          away_score?: number | null
+          created_at?: string
+          game_date?: string
+          home_score?: number | null
+          id?: string
+          is_home?: boolean
+          location?: string | null
+          notes?: string | null
+          opponent_name?: string
+          status?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "games_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lineups: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          is_starting: boolean
+          player_id: string
+          position: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          is_starting?: boolean
+          player_id: string
+          position: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          is_starting?: boolean
+          player_id?: string
+          position?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lineups_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -53,15 +209,134 @@ export type Database = {
         }
         Relationships: []
       }
+      team_memberships: {
+        Row: {
+          created_at: string
+          id: string
+          jersey_number: number | null
+          membership_type: Database["public"]["Enums"]["membership_type"]
+          position: string | null
+          status: Database["public"]["Enums"]["membership_status"]
+          team_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          jersey_number?: number | null
+          membership_type?: Database["public"]["Enums"]["membership_type"]
+          position?: string | null
+          status?: Database["public"]["Enums"]["membership_status"]
+          team_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          jersey_number?: number | null
+          membership_type?: Database["public"]["Enums"]["membership_type"]
+          position?: string | null
+          status?: Database["public"]["Enums"]["membership_status"]
+          team_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_memberships_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          age_group: string | null
+          club_id: string
+          created_at: string
+          division: string | null
+          gender: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          age_group?: string | null
+          club_id: string
+          created_at?: string
+          division?: string | null
+          gender?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          age_group?: string | null
+          club_id?: string
+          created_at?: string
+          division?: string | null
+          gender?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role:
+        | "PLAYER"
+        | "COACH"
+        | "TEAM_MANAGER"
+        | "CLUB_ADMIN"
+        | "ASSOCIATION_ADMIN"
+      membership_status: "PENDING" | "APPROVED" | "DECLINED"
+      membership_type: "PRIMARY" | "PERMANENT" | "FILL_IN"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -188,6 +463,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: [
+        "PLAYER",
+        "COACH",
+        "TEAM_MANAGER",
+        "CLUB_ADMIN",
+        "ASSOCIATION_ADMIN",
+      ],
+      membership_status: ["PENDING", "APPROVED", "DECLINED"],
+      membership_type: ["PRIMARY", "PERMANENT", "FILL_IN"],
+    },
   },
 } as const
