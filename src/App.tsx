@@ -18,6 +18,13 @@ import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
+// Admin Pages
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AssociationsManagement from "./pages/admin/AssociationsManagement";
+import ClubsManagement from "./pages/admin/ClubsManagement";
+import TeamsManagement from "./pages/admin/TeamsManagement";
+import UsersManagement from "./pages/admin/UsersManagement";
+
 // Layout
 import AppLayout from "./components/layout/AppLayout";
 
@@ -55,6 +62,13 @@ const App = () => (
                   <Route path="/roster" element={<Roster />} />
                   <Route path="/chat" element={<Chat />} />
                   <Route path="/profile" element={<Profile />} />
+                  
+                  {/* Admin Routes */}
+                  <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/admin/associations" element={<AssociationsManagement />} />
+                  <Route path="/admin/clubs" element={<ClubsManagement />} />
+                  <Route path="/admin/teams" element={<TeamsManagement />} />
+                  <Route path="/admin/users" element={<UsersManagement />} />
                 </Route>
               </Route>
 
