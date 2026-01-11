@@ -29,7 +29,7 @@ import type { Database } from "@/integrations/supabase/types";
 type AppRole = Database["public"]["Enums"]["app_role"];
 type MembershipType = Database["public"]["Enums"]["membership_type"];
 
-const ALL_ROLES: AppRole[] = ["PLAYER", "COACH", "TEAM_MANAGER", "CLUB_ADMIN", "ASSOCIATION_ADMIN"];
+const ALL_ROLES: AppRole[] = ["PLAYER", "COACH", "TEAM_MANAGER", "CLUB_ADMIN", "ASSOCIATION_ADMIN", "SUPER_ADMIN"];
 
 const getRoleDisplayName = (role: AppRole): string => {
   const names: Record<AppRole, string> = {
@@ -38,6 +38,7 @@ const getRoleDisplayName = (role: AppRole): string => {
     TEAM_MANAGER: "Team Manager",
     CLUB_ADMIN: "Club Admin",
     ASSOCIATION_ADMIN: "Association Admin",
+    SUPER_ADMIN: "Super Admin",
   };
   return names[role];
 };
@@ -49,6 +50,7 @@ const getRoleEmoji = (role: AppRole): string => {
     TEAM_MANAGER: "📊",
     CLUB_ADMIN: "🏢",
     ASSOCIATION_ADMIN: "🏛️",
+    SUPER_ADMIN: "👑",
   };
   return emojis[role];
 };

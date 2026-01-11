@@ -398,6 +398,7 @@ export type Database = {
         | "TEAM_MANAGER"
         | "CLUB_ADMIN"
         | "ASSOCIATION_ADMIN"
+        | "SUPER_ADMIN"
       membership_status: "PENDING" | "APPROVED" | "DECLINED"
       membership_type: "PRIMARY" | "PERMANENT" | "FILL_IN"
     }
@@ -533,6 +534,7 @@ export const Constants = {
         "TEAM_MANAGER",
         "CLUB_ADMIN",
         "ASSOCIATION_ADMIN",
+        "SUPER_ADMIN",
       ],
       membership_status: ["PENDING", "APPROVED", "DECLINED"],
       membership_type: ["PRIMARY", "PERMANENT", "FILL_IN"],
