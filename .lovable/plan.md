@@ -1,91 +1,71 @@
 
 
-## Fix Google Sign-In: Full Implementation Plan
+## Implementation Plan: Redesign Hockey Pitch to Match Reference Image
 
-### The Problem
+### Overview
 
-Your app currently calls `supabase.auth.signInWithOAuth()` directly on line 80 of `AuthContext.tsx`. This requires you to manually configure a Google OAuth Client ID, Secret, consent screen, authorized domains, and redirect URIs in Google Cloud Console. A misconfiguration in that chain is causing the 403 error from Google.
+Replace the current portrait-oriented CSS pitch with a landscape SVG-based field hockey diagram matching the reference image: royal blue surround, flat green field, proper D arcs, 23m lines, center line, goals with grey posts, penalty spots, dotted arcs, and tick marks.
 
-### The Solution
+### Files to Change
 
-Switch to **Lovable Cloud's managed Google Sign-In**, which handles all Google credentials and configuration automatically. No Google Cloud Console setup needed.
+#### 1. `src/components/lineup/HockeyPitch.tsx` -- Full Rewrite
 
----
+Replace the entire CSS-based pitch (lines 1-54) with an inline SVG inside a wrapper div.
 
-### Step-by-Step Implementation
+**SVG structure** (viewBox `0 0 1000 620`):
+- Royal blue background rect filling the entire viewBox
+- Green playing surface rect centered within it (approx 60px padding)
+- White boundary line inset slightly from the green edge
+- Three vertical white lines: left 23m, center, right 23m (evenly spaced)
+- Left and right shooting circles: bold white semicircular arcs bulging inward from each end line
+- Penalty spot dots inside each D (small filled white circles)
+- Dotted semicircular arcs outside each D (wider radius, made of small evenly-spaced dots using `stroke-dasharray`)
+- Goals at each end: small rectangles protruding outward into the blue surround, with light grey side posts
+- Small white tick marks along all four sidelines at regular intervals
+- No gradients, no shadows, no text
 
-#### Step 1: Run the Configure Social Login tool
+The `children` overlay div remains absolutely positioned on top of the SVG so drag-and-drop continues to work unchanged.
 
-This is an internal tool I will run that:
-- Generates a new `src/integrations/lovable/` module (currently does not exist)
-- Installs the `@lovable.dev/cloud-auth-js` package
-- You will see an approval prompt -- just click approve
+Aspect ratio changes from `aspect-[3/4]` (portrait) to `aspect-[1000/620]` (landscape). Remove `max-w-md` constraint to let the pitch use full width.
 
-No code changes from you. I handle this.
+#### 2. `src/components/lineup/types.ts` -- Rotate Position Coordinates
 
----
+All coordinates rotate 90 degrees. Attack moves to the **right** side, goalkeeper to the **left**. "Left" positions map to the top of the landscape view, "right" to the bottom.
 
-#### Step 2: Update `AuthContext.tsx`
+Updated `PITCH_POSITIONS` array (lines 26-44):
 
-Replace the `signInWithGoogle` function (lines 77-88) to use the managed solution instead of the direct call.
+| Position | Old x, y | New x, y |
+|---|---|---|
+| LW | 20, 15 | 85, 20 |
+| CF | 50, 12 | 88, 50 |
+| RW | 80, 15 | 85, 80 |
+| LI | 25, 35 | 65, 25 |
+| CH | 50, 32 | 68, 50 |
+| RI | 75, 35 | 65, 75 |
+| LH | 25, 58 | 42, 25 |
+| FB | 50, 62 | 38, 50 |
+| RH | 75, 58 | 42, 75 |
+| GK | 50, 85 | 15, 50 |
 
-**Before (current code):**
-```typescript
-import { supabase } from "@/integrations/supabase/client";
+Comments updated to reflect landscape orientation (attack = right, defense = left).
 
-const signInWithGoogle = async () => {
-  const redirectUrl = `${window.location.origin}/dashboard`;
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: redirectUrl },
-  });
-  return { error: error as Error | null };
-};
-```
+#### 3. `src/components/lineup/PitchPosition.tsx` -- Minor Colour Fix
 
-**After (fixed code):**
-```typescript
-import { lovable } from "@/integrations/lovable/index";
+Line 60: Change `ring-offset-green-800` to `ring-offset-[#2d8a4e]` (or whatever the exact green hex used in the SVG field fill) so the selection ring blends with the new pitch colour.
 
-const signInWithGoogle = async () => {
-  const { error } = await lovable.auth.signInWithOAuth("google", {
-    redirect_uri: window.location.origin,
-  });
-  return { error: error as Error | null };
-};
-```
+### Files NOT Changed
 
-The key changes:
-- New import: `lovable` from the auto-generated module
-- Replace `supabase.auth.signInWithOAuth(...)` with `lovable.auth.signInWithOAuth("google", ...)`
-- The `redirect_uri` is set to `window.location.origin` (the app root), not `/dashboard` -- the router and auth state listener will handle navigation after sign-in
+- `LineupView.tsx` -- no changes needed; it passes children into `HockeyPitch` and uses percentage positioning
+- `Lineup.tsx` -- no changes needed
+- `BenchArea.tsx`, `PlayerChip.tsx`, `PlayerSelectDialog.tsx` -- unchanged
+- No new dependencies required
 
-Everything else in `AuthContext.tsx` stays exactly the same -- email sign-in, sign-up, sign-out, session management are all unaffected.
+### Technical Notes
 
----
-
-#### Step 3: No changes needed to Login.tsx
-
-The Login page already calls `signInWithGoogle()` from the auth context (line 64). Since we are only changing the internal implementation of that function in the context, the Login page works as-is.
-
----
-
-### Technical Details
-
-| Item | Detail |
-|---|---|
-| Files modified | `src/contexts/AuthContext.tsx` (1 file) |
-| Files auto-generated | `src/integrations/lovable/index.ts` (by the tool) |
-| Package installed | `@lovable.dev/cloud-auth-js` (by the tool) |
-| Lines changed | ~6 lines (add 1 import, replace lines 77-88) |
-| Risk | Very low -- only the Google OAuth call changes |
-
-### How to Test After Implementation
-
-1. Open an incognito/private browser window
-2. Navigate to `/login`
-3. Click "Continue with Google"
-4. Select your Google account on the Google sign-in screen
-5. Confirm you are redirected back to the app and land on `/dashboard`
-6. Verify the user session is active (profile page loads, etc.)
+- SVG scales responsively via `w-full` with the SVG `viewBox` maintaining aspect ratio
+- The children overlay div uses `absolute inset-0` so percentage-based player positioning maps correctly over the SVG
+- Drag-and-drop behaviour is unaffected since `PitchPosition` still uses `left`/`top` percentages
+- The D arcs will use SVG `<path>` elements with arc commands for precise semicircles
+- Dotted arcs use `stroke-dasharray` on a `<circle>` or `<path>` element
+- Tick marks are small `<line>` elements at regular intervals along the boundary
 
