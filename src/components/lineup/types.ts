@@ -22,25 +22,25 @@ export interface DragItem {
   sourcePositionId: string | null;
 }
 
-// Standard hockey positions on the pitch
+// Standard hockey positions on the pitch (landscape: attack = right, defense = left)
 export const PITCH_POSITIONS: PitchPosition[] = [
-  // Attack line (top of pitch view)
-  { id: "lw", label: "LW", x: 20, y: 15, zone: "attack" },
-  { id: "cf", label: "CF", x: 50, y: 12, zone: "attack" },
-  { id: "rw", label: "RW", x: 80, y: 15, zone: "attack" },
+  // Attack line (right side of landscape pitch)
+  { id: "lw", label: "LW", x: 85, y: 20, zone: "attack" },
+  { id: "cf", label: "CF", x: 88, y: 50, zone: "attack" },
+  { id: "rw", label: "RW", x: 85, y: 80, zone: "attack" },
   
-  // Midfield line
-  { id: "li", label: "LI", x: 25, y: 35, zone: "midfield" },
-  { id: "ch", label: "CH", x: 50, y: 32, zone: "midfield" },
-  { id: "ri", label: "RI", x: 75, y: 35, zone: "midfield" },
+  // Midfield line (center area)
+  { id: "li", label: "LI", x: 65, y: 25, zone: "midfield" },
+  { id: "ch", label: "CH", x: 68, y: 50, zone: "midfield" },
+  { id: "ri", label: "RI", x: 65, y: 75, zone: "midfield" },
   
-  // Defense line
-  { id: "lh", label: "LH", x: 25, y: 58, zone: "defense" },
-  { id: "fb", label: "FB", x: 50, y: 62, zone: "defense" },
-  { id: "rh", label: "RH", x: 75, y: 58, zone: "defense" },
+  // Defense line (left-center area)
+  { id: "lh", label: "LH", x: 42, y: 25, zone: "defense" },
+  { id: "fb", label: "FB", x: 38, y: 50, zone: "defense" },
+  { id: "rh", label: "RH", x: 42, y: 75, zone: "defense" },
   
-  // Goalkeeper
-  { id: "gk", label: "GK", x: 50, y: 85, zone: "goalkeeper" },
+  // Goalkeeper (far left)
+  { id: "gk", label: "GK", x: 15, y: 50, zone: "goalkeeper" },
 ];
 
 export const POSITION_LABELS: Record<string, string> = {

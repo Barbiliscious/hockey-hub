@@ -57,7 +57,7 @@ export const PitchPosition = ({
       {player ? (
         <div className={cn(
           "rounded-full transition-all",
-          isSelected && "ring-2 ring-accent ring-offset-2 ring-offset-green-800"
+          isSelected && "ring-2 ring-accent ring-offset-2 ring-offset-[#2d8a4e]"
         )}>
           <PlayerChip
             player={player}
