@@ -21,8 +21,8 @@ const Landing = () => {
   const LINE_23_LEFT = FIELD_X + FIELD_W * 0.25;
   const LINE_23_RIGHT = FIELD_X + FIELD_W * 0.75;
   const MID_Y = FIELD_Y + FIELD_H / 2;
-  const D_RADIUS = 100;
-  const DOT_ARC_RADIUS = 130;
+  const D_RADIUS = 160;
+  const DOT_ARC_RADIUS = 200;
   const GOAL_W = 20;
   const GOAL_H = 40;
   const TICK_LEN = 6;
@@ -59,28 +59,28 @@ const Landing = () => {
           className="absolute inset-0 w-full h-full z-0"
           preserveAspectRatio="xMidYMid slice"
         >
-          <rect x="0" y="0" width="1000" height="620" fill="#1a3a6b" />
-          <rect x={FIELD_X} y={FIELD_Y} width={FIELD_W} height={FIELD_H} fill="#2d8a4e" />
+          <rect x="0" y="0" width="1000" height="620" fill="#0033aa" />
+          <rect x={FIELD_X} y={FIELD_Y} width={FIELD_W} height={FIELD_H} fill="#0066cc" />
           <rect x={FIELD_X + 4} y={FIELD_Y + 4} width={FIELD_W - 8} height={FIELD_H - 8} fill="none" stroke="white" strokeWidth="2.5" />
           <line x1={CENTER_X_LINE} y1={FIELD_Y + 4} x2={CENTER_X_LINE} y2={FIELD_B - 4} stroke="white" strokeWidth="2" />
           <line x1={LINE_23_LEFT} y1={FIELD_Y + 4} x2={LINE_23_LEFT} y2={FIELD_B - 4} stroke="white" strokeWidth="1.5" />
           <line x1={LINE_23_RIGHT} y1={FIELD_Y + 4} x2={LINE_23_RIGHT} y2={FIELD_B - 4} stroke="white" strokeWidth="1.5" />
           <path d={leftD} fill="none" stroke="white" strokeWidth="2.5" />
           <path d={rightD} fill="none" stroke="white" strokeWidth="2.5" />
-          <path d={leftDotArc} fill="none" stroke="white" strokeWidth="2" strokeDasharray="4 8" />
-          <path d={rightDotArc} fill="none" stroke="white" strokeWidth="2" strokeDasharray="4 8" />
+          <path d={leftDotArc} fill="none" stroke="white" strokeWidth="2" strokeDasharray="12 10" />
+          <path d={rightDotArc} fill="none" stroke="white" strokeWidth="2" strokeDasharray="12 10" />
           <circle cx={FIELD_X + penSpotOffset} cy={MID_Y} r="4" fill="white" />
           <circle cx={FIELD_R - penSpotOffset} cy={MID_Y} r="4" fill="white" />
-          <rect x={FIELD_X - GOAL_W} y={MID_Y - GOAL_H / 2} width={GOAL_W} height={GOAL_H} fill="#1a3a6b" stroke="white" strokeWidth="2" />
+          <rect x={FIELD_X - GOAL_W} y={MID_Y - GOAL_H / 2} width={GOAL_W} height={GOAL_H} fill="#0033aa" stroke="white" strokeWidth="2" />
           <rect x={FIELD_X - GOAL_W - 4} y={MID_Y - GOAL_H / 2 - 3} width={6} height={8} fill="#b0b0b0" />
           <rect x={FIELD_X - GOAL_W - 4} y={MID_Y + GOAL_H / 2 - 5} width={6} height={8} fill="#b0b0b0" />
-          <rect x={FIELD_R} y={MID_Y - GOAL_H / 2} width={GOAL_W} height={GOAL_H} fill="#1a3a6b" stroke="white" strokeWidth="2" />
+          <rect x={FIELD_R} y={MID_Y - GOAL_H / 2} width={GOAL_W} height={GOAL_H} fill="#0033aa" stroke="white" strokeWidth="2" />
           <rect x={FIELD_R + GOAL_W - 2} y={MID_Y - GOAL_H / 2 - 3} width={6} height={8} fill="#b0b0b0" />
           <rect x={FIELD_R + GOAL_W - 2} y={MID_Y + GOAL_H / 2 - 5} width={6} height={8} fill="#b0b0b0" />
           {ticks}
         </svg>
         {/* Dark overlay for text readability */}
-        <div className="absolute inset-0 z-[1] bg-primary/60" />
+        <div className="absolute inset-0 z-[1] bg-primary/40" />
 
         {/* Content */}
         <div className="relative z-10 container mx-auto px-4 py-20 text-center">
