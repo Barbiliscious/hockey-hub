@@ -45,28 +45,40 @@ export type Database = {
         Row: {
           abbreviation: string | null
           association_id: string
+          banner_url: string | null
           created_at: string
+          home_ground: string | null
           id: string
           logo_url: string | null
           name: string
+          primary_colour: string | null
+          secondary_colour: string | null
           updated_at: string
         }
         Insert: {
           abbreviation?: string | null
           association_id: string
+          banner_url?: string | null
           created_at?: string
+          home_ground?: string | null
           id?: string
           logo_url?: string | null
           name: string
+          primary_colour?: string | null
+          secondary_colour?: string | null
           updated_at?: string
         }
         Update: {
           abbreviation?: string | null
           association_id?: string
+          banner_url?: string | null
           created_at?: string
+          home_ground?: string | null
           id?: string
           logo_url?: string | null
           name?: string
+          primary_colour?: string | null
+          secondary_colour?: string | null
           updated_at?: string
         }
         Relationships: [
