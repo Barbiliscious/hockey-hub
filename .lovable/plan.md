@@ -1,71 +1,36 @@
 
 
-## Implementation Plan: Redesign Hockey Pitch to Match Reference Image
+## Plan: Replace Landing Page Hero Background with Inline SVG Hockey Pitch
 
-### Overview
+### What Changes
 
-Replace the current portrait-oriented CSS pitch with a landscape SVG-based field hockey diagram matching the reference image: royal blue surround, flat green field, proper D arcs, 23m lines, center line, goals with grey posts, penalty spots, dotted arcs, and tick marks.
+The landing page hero section (lines 17-28 of `Landing.tsx`) currently uses a photo (`hero-bg.jpg`) with a gradient overlay. We will replace this with the hockey pitch SVG rendered inline as the background, creating a clean vector sports aesthetic.
 
-### Files to Change
+### File: `src/pages/Landing.tsx`
 
-#### 1. `src/components/lineup/HockeyPitch.tsx` -- Full Rewrite
+**Lines 11, 18-28** -- Replace the background image div with an inline SVG hockey pitch.
 
-Replace the entire CSS-based pitch (lines 1-54) with an inline SVG inside a wrapper div.
+1. Remove the `import heroBg` line (line 11) since the photo is no longer used.
 
-**SVG structure** (viewBox `0 0 1000 620`):
-- Royal blue background rect filling the entire viewBox
-- Green playing surface rect centered within it (approx 60px padding)
-- White boundary line inset slightly from the green edge
-- Three vertical white lines: left 23m, center, right 23m (evenly spaced)
-- Left and right shooting circles: bold white semicircular arcs bulging inward from each end line
-- Penalty spot dots inside each D (small filled white circles)
-- Dotted semicircular arcs outside each D (wider radius, made of small evenly-spaced dots using `stroke-dasharray`)
-- Goals at each end: small rectangles protruding outward into the blue surround, with light grey side posts
-- Small white tick marks along all four sidelines at regular intervals
-- No gradients, no shadows, no text
+2. Replace the background div (lines 18-28) with an inline SVG that renders the full hockey pitch diagram directly. The SVG will:
+   - Fill the entire hero section using `absolute inset-0 w-full h-full`
+   - Use `preserveAspectRatio="xMidYMid slice"` so it covers the section fully (like `background-size: cover`) without distortion
+   - Use the same viewBox (`0 0 1000 620`) and identical markup as `HockeyPitch.tsx` -- royal blue surround, green field, white boundary, 23m lines, center line, D arcs, dotted arcs, penalty spots, goals with grey posts, and tick marks
+   - A semi-transparent dark overlay div on top of the SVG to ensure text remains readable (e.g. `bg-primary/70`)
 
-The `children` overlay div remains absolutely positioned on top of the SVG so drag-and-drop continues to work unchanged.
+3. The SVG is rendered directly in `Landing.tsx` rather than importing `HockeyPitch` because:
+   - `HockeyPitch` expects `children` (player overlay) which is not needed here
+   - The `preserveAspectRatio` value differs (`slice` for cover behaviour vs `meet` for the lineup builder)
+   - Keeps the landing page self-contained
 
-Aspect ratio changes from `aspect-[3/4]` (portrait) to `aspect-[1000/620]` (landscape). Remove `max-w-md` constraint to let the pitch use full width.
+### File: `src/components/lineup/HockeyPitch.tsx` -- No Changes
 
-#### 2. `src/components/lineup/types.ts` -- Rotate Position Coordinates
+The existing lineup pitch component remains untouched. The landing page gets its own standalone SVG.
 
-All coordinates rotate 90 degrees. Attack moves to the **right** side, goalkeeper to the **left**. "Left" positions map to the top of the landscape view, "right" to the bottom.
+### Technical Details
 
-Updated `PITCH_POSITIONS` array (lines 26-44):
-
-| Position | Old x, y | New x, y |
-|---|---|---|
-| LW | 20, 15 | 85, 20 |
-| CF | 50, 12 | 88, 50 |
-| RW | 80, 15 | 85, 80 |
-| LI | 25, 35 | 65, 25 |
-| CH | 50, 32 | 68, 50 |
-| RI | 75, 35 | 65, 75 |
-| LH | 25, 58 | 42, 25 |
-| FB | 50, 62 | 38, 50 |
-| RH | 75, 58 | 42, 75 |
-| GK | 50, 85 | 15, 50 |
-
-Comments updated to reflect landscape orientation (attack = right, defense = left).
-
-#### 3. `src/components/lineup/PitchPosition.tsx` -- Minor Colour Fix
-
-Line 60: Change `ring-offset-green-800` to `ring-offset-[#2d8a4e]` (or whatever the exact green hex used in the SVG field fill) so the selection ring blends with the new pitch colour.
-
-### Files NOT Changed
-
-- `LineupView.tsx` -- no changes needed; it passes children into `HockeyPitch` and uses percentage positioning
-- `Lineup.tsx` -- no changes needed
-- `BenchArea.tsx`, `PlayerChip.tsx`, `PlayerSelectDialog.tsx` -- unchanged
-- No new dependencies required
-
-### Technical Notes
-
-- SVG scales responsively via `w-full` with the SVG `viewBox` maintaining aspect ratio
-- The children overlay div uses `absolute inset-0` so percentage-based player positioning maps correctly over the SVG
-- Drag-and-drop behaviour is unaffected since `PitchPosition` still uses `left`/`top` percentages
-- The D arcs will use SVG `<path>` elements with arc commands for precise semicircles
-- Dotted arcs use `stroke-dasharray` on a `<circle>` or `<path>` element
-- Tick marks are small `<line>` elements at regular intervals along the boundary
+- The SVG constants (PADDING, FIELD dimensions, arc radii, etc.) are duplicated as local consts in Landing.tsx. This is acceptable since these are static layout values and the two use cases need different `preserveAspectRatio` behaviour.
+- The tick marks are generated with the same loop logic.
+- The overlay gradient changes from `bg-gradient-to-br from-primary/95 via-primary/85 to-accent/60` to a simpler `bg-primary/60` or similar semi-transparent overlay so the pitch shows through clearly while text stays legible.
+- No new dependencies or files needed.
 
