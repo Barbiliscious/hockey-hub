@@ -1,61 +1,68 @@
 
 
-## Proposed Code Changes: Blue Synthetic Turf Hockey Pitch
+## Plan: Replace Placeholder Seed Data with Correct Hockey Ballarat and Wimmera Data
 
-Here is the exact code that would replace the current `Landing.tsx`. Only the SVG constants and colour values change -- the rest of the file stays identical.
+### Overview
 
-### Changes summary (lines 24-25, 62-63, 70-71, 74, 77, 83):
+Delete all existing placeholder data (Hockey Victoria, Hockey NSW, Hockey Queensland and their clubs/teams/games) and insert the correct competition data for Hockey Ballarat and Wimmera Hockey associations, with all their clubs, home grounds, and teams -- sorted alphabetically.
 
-**Constants (lines 24-25)** -- larger D-arcs to match reference images:
-```typescript
-// CURRENT:
-const D_RADIUS = 100;
-const DOT_ARC_RADIUS = 130;
+### Step 1: Database Migration -- Clear Old Data and Insert New
 
-// NEW:
-const D_RADIUS = 160;
-const DOT_ARC_RADIUS = 200;
-```
+A single migration that:
 
-**SVG fills (lines 62-63)** -- blue turf instead of green:
-```tsx
-// CURRENT:
-<rect x="0" y="0" width="1000" height="620" fill="#1a3a6b" />
-<rect x={FIELD_X} y={FIELD_Y} width={FIELD_W} height={FIELD_H} fill="#2d8a4e" />
+1. **Deletes all existing data** in dependency order: `lineups` -> `games` -> `teams` -> `clubs` -> `associations`
+2. **Inserts 2 associations**: Hockey Ballarat, Wimmera (alphabetical)
+3. **Inserts 13 clubs** with home grounds (alphabetical within each association):
+   - Hockey Ballarat (7 clubs): Blaze HC, Bobcats HC, Ducks HC, Eureka and Golden City HC, Grampians HC, Lucas HC
+   - Wimmera (6 clubs): Dimboola HC, Horsham HC, Kaniva HC, Nhill & District SC, Warracknabeal HC, Yanac HC
+4. **Inserts all teams** per the provided data, using the correct `age_group`, `gender`, and `division` mappings:
 
-// NEW:
-<rect x="0" y="0" width="1000" height="620" fill="#0033aa" />
-<rect x={FIELD_X} y={FIELD_Y} width={FIELD_W} height={FIELD_H} fill="#0066cc" />
-```
+| Team Description | age_group | gender | division |
+|---|---|---|---|
+| Open Div 1 | Open | Mixed | Division 1 |
+| Open Div 2 | Open | Mixed | Division 2 |
+| Women | Open | Women | Women Division 1 |
+| Mixed Under 11 | Under 11 | Mixed | Junior |
+| Mixed Under 12 | Under 12 | Mixed | Junior |
+| Mixed Under 14 | Under 14 | Mixed | Junior |
+| Mixed Under 16 | Under 16 | Mixed | Junior |
+| Open (Wimmera) | Open | Mixed | Division 1 |
+| Women (Wimmera) | Open | Women | Women Division 1 |  
+| U16 (Wimmera) | Under 16 | Mixed | Junior |
+| U12 (Wimmera) | Under 12 | Mixed | Junior |
 
-**Dashed arcs (lines 70-71)** -- longer dashes matching reference:
-```tsx
-// CURRENT:
-strokeDasharray="4 8"
+### Clubs and Teams Breakdown
 
-// NEW:
-strokeDasharray="12 10"
-```
+**Hockey Ballarat:**
+- Blaze HC (Prince of Wales Park North) -- Open Div 1, Open Div 2, Women, Mixed Under 14, Mixed Under 16, Mixed Under 11
+- Bobcats HC (Prince of Wales Park North) -- Open Div 1, Open Div 2, Women, Mixed Under 14, Mixed Under 16, Mixed Under 11
+- Ducks HC (Prince of Wales Park South) -- Open Div 1, Women
+- Eureka and Golden City HC (Prince of Wales Park South) -- Open Div 1, Open Div 2, Women, Mixed Under 14, Mixed Under 16, Mixed Under 11
+- Grampians HC (Prince of Wales Park South) -- Open Div 2
+- Lucas HC (Prince of Wales Park North) -- Open Div 1, Open Div 2, Women, Mixed Under 14, Mixed Under 16, Mixed Under 11
 
-**Goal fills (lines 74, 77)** -- match new surround colour:
-```tsx
-// CURRENT:
-fill="#1a3a6b"
+**Wimmera:** (each club has Open, Women, U16, U12)
+- Dimboola HC (Dimboola Recreation Reserve)
+- Horsham HC (Dimboola Recreation Reserve)
+- Kaniva HC (Kaniva Recreation Reserve)
+- Nhill & District SC (Nhill Town Oval)
+- Warracknabeal HC (Warracknabeal Recreation Reserve)
+- Yanac HC (Yanac Recreation Reserve)
 
-// NEW:
-fill="#0033aa"
-```
+### Step 2: No Code Changes Required
 
-**Overlay opacity (line 83)** -- more transparent so blue pitch shows through:
-```tsx
-// CURRENT:
-<div className="absolute inset-0 z-[1] bg-primary/60" />
+The admin pages (`AssociationsManagement`, `ClubsManagement`, `TeamsManagement`) already fetch data from the database dynamically. The new data will appear automatically once the migration runs. The clubs table already has a `home_ground` column from the earlier branding migration plan -- if that column doesn't exist yet, we will add it in this migration.
 
-// NEW:
-<div className="absolute inset-0 z-[1] bg-primary/40" />
-```
+### Technical Details
 
-### What stays the same
+- The `clubs` table currently lacks `home_ground`, `banner_url`, `primary_colour`, `secondary_colour` columns. This migration will add them (as planned in the earlier club branding discussion) so we can set `home_ground` values for each club.
+- All IDs will use `gen_random_uuid()` (no hardcoded UUIDs) since there are no dependencies to maintain.
+- Teams are alphabetically ordered within each club.
+- The migration is safe because there are 0 team memberships and 0 lineups; the 5 existing games reference old placeholder teams and will be deleted.
 
-Everything else in the file is untouched: imports, tick mark generation, content section, features section, CTA section, footer, and the `FeatureCard` component. `HockeyPitch.tsx` (the lineup builder component) remains unchanged with its green field.
+### Files Changed
+
+| File | Change |
+|---|---|
+| New migration | SQL to delete old data, add columns to clubs, insert associations/clubs/teams |
 
