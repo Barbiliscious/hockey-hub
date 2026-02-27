@@ -1,18 +1,51 @@
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, Calendar, Clock, MapPin } from "lucide-react";
-import { mockGames } from "@/lib/mockData";
 import { LineupView } from "@/components/lineup/LineupView";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { useTeamContext } from "@/contexts/TeamContext";
+import { supabase } from "@/integrations/supabase/client";
+
+interface GameRow {
+  id: string;
+  team_id: string;
+  opponent_name: string;
+  game_date: string;
+  is_home: boolean;
+  location: string | null;
+  status: string;
+}
 
 const Lineup = () => {
   const { id } = useParams();
-  const game = mockGames.find((g) => g.id === id);
-  
-  // Mock: toggle between coach and player view for demo
+  const { selectedTeam } = useTeamContext();
+  const [game, setGame] = useState<GameRow | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isCoachView, setIsCoachView] = useState(true);
+
+  useEffect(() => {
+    const fetchGame = async () => {
+      if (!id) return;
+      setLoading(true);
+      const { data } = await supabase.from("games").select("*").eq("id", id).single();
+      setGame(data);
+      setLoading(false);
+    };
+    fetchGame();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="space-y-4 animate-fade-in">
+        <Skeleton className="h-8 w-32" />
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
 
   if (!game) {
     return (
@@ -25,9 +58,11 @@ const Lineup = () => {
     );
   }
 
+  const teamName = selectedTeam?.name || "Team";
+  const gameDate = new Date(game.game_date);
+
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <Link to={`/games/${id}`}>
           <Button variant="ghost" size="sm" className="gap-2">
@@ -36,7 +71,6 @@ const Lineup = () => {
           </Button>
         </Link>
         
-        {/* Demo toggle */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">View as:</span>
           <div className="flex rounded-lg border border-border overflow-hidden">
@@ -44,9 +78,7 @@ const Lineup = () => {
               onClick={() => setIsCoachView(true)}
               className={cn(
                 "px-3 py-1 text-xs font-medium transition-colors",
-                isCoachView
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-transparent text-muted-foreground hover:bg-muted"
+                isCoachView ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:bg-muted"
               )}
             >
               Coach
@@ -55,9 +87,7 @@ const Lineup = () => {
               onClick={() => setIsCoachView(false)}
               className={cn(
                 "px-3 py-1 text-xs font-medium transition-colors",
-                !isCoachView
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-transparent text-muted-foreground hover:bg-muted"
+                !isCoachView ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:bg-muted"
               )}
             >
               Player
@@ -66,43 +96,32 @@ const Lineup = () => {
         </div>
       </div>
 
-      {/* Game Info Mini Card */}
       <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border">
         <div>
           <p className="font-semibold text-sm">
-            {game.homeTeamName} vs {game.awayTeamName}
+            {game.is_home ? teamName : game.opponent_name} vs {game.is_home ? game.opponent_name : teamName}
           </p>
           <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
             <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              {new Date(game.date).toLocaleDateString("en-AU", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              })}
+              {gameDate.toLocaleDateString("en-AU", { weekday: "short", month: "short", day: "numeric" })}
             </span>
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {game.startTime}
+              {gameDate.toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" })}
             </span>
           </div>
         </div>
-        <Badge variant="default">{game.grade}</Badge>
+        <Badge variant="default">{game.is_home ? "Home" : "Away"}</Badge>
       </div>
 
-      {/* Lineup View */}
       <LineupView
         gameId={game.id}
-        teamName="Grampians HC"
-        opponentName={
-          game.homeTeamName.includes("Grampians")
-            ? game.awayTeamName
-            : game.homeTeamName
-        }
+        teamName={teamName}
+        opponentName={game.opponent_name}
         isCoach={isCoachView}
       />
 
-      {/* Instructions */}
       {isCoachView && (
         <div className="text-center text-sm text-muted-foreground p-4 bg-muted/30 rounded-lg">
           <p className="font-medium mb-1">Drag & Drop Instructions</p>

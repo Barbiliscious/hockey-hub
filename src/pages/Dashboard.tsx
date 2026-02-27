@@ -1,14 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Calendar,
   MapPin,
@@ -19,133 +13,141 @@ import {
   X,
   HelpCircle,
 } from "lucide-react";
-import { mockGames, currentUser, mockLineups, mockUserAvailability, mockCoachSelections, type AvailabilityStatus } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
+import { useTeamContext } from "@/contexts/TeamContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+
+type AvailabilityStatus = "AVAILABLE" | "UNAVAILABLE" | "UNSURE" | "PENDING";
+
+interface GameRow {
+  id: string;
+  team_id: string;
+  opponent_name: string;
+  game_date: string;
+  is_home: boolean;
+  location: string | null;
+  status: string;
+}
 
 const Dashboard = () => {
-  const [gameFilter, setGameFilter] = useState<string>("all");
-  const [userAvailability, setUserAvailability] = useState<Record<string, AvailabilityStatus>>(mockUserAvailability);
+  const { selectedTeamId, selectedTeam, selectedClub } = useTeamContext();
+  const { user } = useAuth();
+  const [games, setGames] = useState<GameRow[]>([]);
+  const [availability, setAvailability] = useState<Record<string, AvailabilityStatus>>({});
+  const [loading, setLoading] = useState(true);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
-  
-  const upcomingGames = mockGames
-    .filter((game) => game.status === "SCHEDULED")
-    .slice(0, 5);
+  const [profileName, setProfileName] = useState("");
 
-  // Games where user is available and not rejected by coach
-  const upcomingForYou = upcomingGames.filter((game) => {
-    const isAvailable = userAvailability[game.id] === "AVAILABLE";
-    const notRejected = mockCoachSelections[game.id]?.status !== "NOT_SELECTED";
-    return game.isClubTeamGame && isAvailable && notRejected;
-  });
-  
-  const filteredGames = gameFilter === "all" 
-    ? upcomingGames 
-    : gameFilter === "club" 
-    ? upcomingGames.filter((game) => game.isClubTeamGame)
-    : upcomingGames.filter((game) => !game.isClubTeamGame);
+  useEffect(() => {
+    if (!user) return;
+    const fetchProfile = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("first_name")
+        .eq("id", user.id)
+        .single();
+      if (data?.first_name) setProfileName(data.first_name);
+    };
+    fetchProfile();
+  }, [user]);
 
-  // Check if user is selected for lineup
-  const getUserLineupPosition = (gameId: string): string | null => {
-    const lineup = mockLineups[gameId];
-    if (!lineup) return null;
-    const userInLineup = lineup.find(p => p.playerId === currentUser.id);
-    return userInLineup?.position || null;
-  };
-
-  // Check if team name matches user's primary team
-  const isPrimaryTeam = (teamName: string): boolean => {
-    return teamName.includes("Grampians");
-  };
-
-  // Handle availability selection
-  const handleAvailabilityChange = (gameId: string, status: AvailabilityStatus) => {
-    setUserAvailability(prev => ({ ...prev, [gameId]: status }));
-  };
-
-  // Navigate calendar months
-  const navigateMonth = (direction: "prev" | "next") => {
-    setCalendarMonth(prev => {
-      const newDate = new Date(prev);
-      if (direction === "prev") {
-        newDate.setMonth(newDate.getMonth() - 1);
-      } else {
-        newDate.setMonth(newDate.getMonth() + 1);
+  useEffect(() => {
+    const fetchGames = async () => {
+      if (!selectedTeamId) {
+        setGames([]);
+        setLoading(false);
+        return;
       }
+      setLoading(true);
+
+      const { data: gamesData } = await supabase
+        .from("games")
+        .select("*")
+        .eq("team_id", selectedTeamId)
+        .gte("game_date", new Date().toISOString())
+        .order("game_date", { ascending: true })
+        .limit(8);
+
+      const gamesList = gamesData || [];
+      setGames(gamesList);
+
+      // Fetch availability for these games
+      if (user && gamesList.length > 0) {
+        const gameIds = gamesList.map((g) => g.id);
+        const { data: availData } = await supabase
+          .from("game_availability")
+          .select("game_id, status")
+          .eq("user_id", user.id)
+          .in("game_id", gameIds);
+
+        const availMap: Record<string, AvailabilityStatus> = {};
+        availData?.forEach((a) => {
+          availMap[a.game_id] = a.status as AvailabilityStatus;
+        });
+        setAvailability(availMap);
+      }
+
+      setLoading(false);
+    };
+    fetchGames();
+  }, [selectedTeamId, user]);
+
+  const handleAvailabilityChange = async (gameId: string, status: AvailabilityStatus) => {
+    if (!user) return;
+    setAvailability((prev) => ({ ...prev, [gameId]: status }));
+
+    await supabase
+      .from("game_availability")
+      .upsert({ game_id: gameId, user_id: user.id, status }, { onConflict: "game_id,user_id" });
+  };
+
+  const navigateMonth = (direction: "prev" | "next") => {
+    setCalendarMonth((prev) => {
+      const newDate = new Date(prev);
+      newDate.setMonth(newDate.getMonth() + (direction === "prev" ? -1 : 1));
       return newDate;
     });
   };
 
-  // Generate calendar data for 42 cells (6 weeks)
   const generateCalendarDays = () => {
     const today = new Date();
     const year = calendarMonth.getFullYear();
     const month = calendarMonth.getMonth();
-    
     const firstDayOfMonth = new Date(year, month, 1);
     const lastDayOfMonth = new Date(year, month + 1, 0);
-    
-    // Get day of week for first day (0 = Sunday, adjust to Monday = 0)
     let startOffset = firstDayOfMonth.getDay() - 1;
     if (startOffset < 0) startOffset = 6;
-    
     const daysInMonth = lastDayOfMonth.getDate();
     const days: { date: number; isCurrentMonth: boolean; isToday: boolean; hasGame: boolean }[] = [];
-    
-    // Previous month days
+
     const prevMonthLastDay = new Date(year, month, 0).getDate();
     for (let i = startOffset - 1; i >= 0; i--) {
-      days.push({
-        date: prevMonthLastDay - i,
-        isCurrentMonth: false,
-        isToday: false,
-        hasGame: false,
-      });
+      days.push({ date: prevMonthLastDay - i, isCurrentMonth: false, isToday: false, hasGame: false });
     }
-    
-    // Get game days where user is AVAILABLE
-    const gameDays = mockGames
-      .filter(g => {
-        const gameDate = new Date(g.date);
-        const isThisMonth = gameDate.getMonth() === month && gameDate.getFullYear() === year;
-        const isAvailable = userAvailability[g.id] === "AVAILABLE";
-        return isThisMonth && isAvailable;
+
+    const gameDays = games
+      .filter((g) => {
+        const d = new Date(g.game_date);
+        return d.getMonth() === month && d.getFullYear() === year;
       })
-      .map(g => new Date(g.date).getDate());
-    
-    // Current month days
+      .map((g) => new Date(g.game_date).getDate());
+
     for (let i = 1; i <= daysInMonth; i++) {
-      const isToday = 
-        i === today.getDate() && 
-        month === today.getMonth() && 
-        year === today.getFullYear();
-      days.push({
-        date: i,
-        isCurrentMonth: true,
-        isToday,
-        hasGame: gameDays.includes(i),
-      });
+      const isToday = i === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+      days.push({ date: i, isCurrentMonth: true, isToday, hasGame: gameDays.includes(i) });
     }
-    
-    // Next month days to fill 42 cells
+
     const remaining = 42 - days.length;
     for (let i = 1; i <= remaining; i++) {
-      days.push({
-        date: i,
-        isCurrentMonth: false,
-        isToday: false,
-        hasGame: false,
-      });
+      days.push({ date: i, isCurrentMonth: false, isToday: false, hasGame: false });
     }
-    
     return days;
   };
 
   const calendarDays = generateCalendarDays();
-  
-  const monthYearLabel = calendarMonth.toLocaleDateString("en-AU", {
-    month: "long",
-    year: "numeric",
-  });
+  const monthYearLabel = calendarMonth.toLocaleDateString("en-AU", { month: "long", year: "numeric" });
+  const teamName = selectedTeam?.name || "Team";
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -153,53 +155,51 @@ const Dashboard = () => {
       <Card className="bg-primary text-primary-foreground">
         <CardContent className="py-4 px-6">
           <p className="text-lg font-medium">
-            Dashboard home team. Welcome {currentUser.name.split(" ")[0]}
+            Welcome back{profileName ? `, ${profileName}` : ""}!
+          </p>
+          <p className="text-sm text-primary-foreground/70 mt-1">
+            {selectedClub?.name || "Select a club"} • {teamName}
           </p>
         </CardContent>
       </Card>
 
-      {/* Main 2-column Grid - 70/30 ratio */}
       <div className="grid grid-cols-1 md:grid-cols-[7fr_3fr] gap-4">
         {/* Left Column */}
         <div className="space-y-4">
-          {/* Club Banner - matches calendar height */}
+          {/* Club Banner */}
           <Card className="bg-primary text-primary-foreground h-[260px]">
             <CardContent className="flex items-center justify-center h-full py-8">
               <div className="text-center">
-                <h2 className="text-xl font-bold mb-2">Grampians Hockey Club</h2>
-                <p className="text-primary-foreground/80">Club banner</p>
+                <h2 className="text-xl font-bold mb-2">{selectedClub?.name || "Select a club"}</h2>
+                <p className="text-primary-foreground/80">
+                  {selectedClub?.home_ground || "Club banner"}
+                </p>
               </div>
             </CardContent>
           </Card>
 
-          {/* All Upcoming Games */}
+          {/* Upcoming Games */}
           <Card className="bg-primary text-primary-foreground">
             <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold text-primary-foreground">
-                  All upcoming games
-                </CardTitle>
-                <Select value={gameFilter} onValueChange={setGameFilter}>
-                  <SelectTrigger className="w-[120px] h-8 bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground text-xs">
-                    <SelectValue placeholder="Filter" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background border-border">
-                    <SelectItem value="all">All games</SelectItem>
-                    <SelectItem value="club">Club games</SelectItem>
-                    <SelectItem value="other">Other games</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <CardTitle className="text-base font-semibold text-primary-foreground">
+                Upcoming games
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {filteredGames.length === 0 ? (
+              {loading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-20 w-full bg-primary-foreground/10" />
+                  ))}
+                </div>
+              ) : games.length === 0 ? (
                 <p className="text-primary-foreground/70 text-sm">No upcoming games</p>
               ) : (
-                filteredGames.slice(0, 4).map((game) => {
-                  const lineupPosition = getUserLineupPosition(game.id);
-                  const availability = userAvailability[game.id];
-                  const showAvailability = game.isClubTeamGame && !lineupPosition;
-                  const showPosition = !!lineupPosition;
+                games.slice(0, 4).map((game) => {
+                  const gameDate = new Date(game.game_date);
+                  const homeTeam = game.is_home ? teamName : game.opponent_name;
+                  const awayTeam = game.is_home ? game.opponent_name : teamName;
+                  const avail = availability[game.id];
 
                   return (
                     <Link
@@ -207,97 +207,63 @@ const Dashboard = () => {
                       to={`/games/${game.id}`}
                       className="block p-3 rounded-lg bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors"
                     >
-                      {/* Line 1: Teams, Association, Grade */}
                       <div className="flex items-center justify-between mb-1.5">
                         <p className="text-sm">
-                          <span className={isPrimaryTeam(game.homeTeamName) ? "font-bold" : ""}>
-                            {game.homeTeamName}
-                          </span>
-                          {" vs "}
-                          <span className={isPrimaryTeam(game.awayTeamName) ? "font-bold" : ""}>
-                            {game.awayTeamName}
-                          </span>
-                          <span className="text-primary-foreground/70">
-                            {" "}({game.associationName}) ({game.grade})
-                          </span>
+                          {homeTeam} vs {awayTeam}
                         </p>
                         <ChevronRight className="h-4 w-4 text-primary-foreground/50 flex-shrink-0" />
                       </div>
-
-                      {/* Line 2: Date, Time, Location */}
                       <div className="flex items-center gap-3 text-xs text-primary-foreground/70 mb-2">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {new Date(game.date).toLocaleDateString("en-AU", {
-                            weekday: "short",
-                            day: "numeric",
-                            month: "short",
-                          })}
+                          {gameDate.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {game.startTime}
+                          {gameDate.toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" })}
                         </span>
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {game.location}
-                        </span>
+                        {game.location && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {game.location}
+                          </span>
+                        )}
                       </div>
 
-                      {/* Line 3: Conditional - Availability or Position */}
-                      {showPosition ? (
-                        <Badge className="bg-primary-foreground/20 text-primary-foreground border-0 text-xs">
-                          {lineupPosition}
-                        </Badge>
-                      ) : showAvailability ? (
-                        <div className="flex gap-2" onClick={(e) => e.preventDefault()}>
-                          <Badge
-                            onClick={() => handleAvailabilityChange(game.id, "AVAILABLE")}
-                            className={`text-xs cursor-pointer transition-all ${
-                              availability === "AVAILABLE"
-                                ? "bg-green-500 text-white border-0"
-                                : "bg-green-500/20 text-green-200 border-0 hover:bg-green-500/40"
-                            }`}
-                          >
-                            <Check className="h-3 w-3 mr-1" />
-                            Available
-                          </Badge>
-                          <Badge
-                            onClick={() => handleAvailabilityChange(game.id, "UNAVAILABLE")}
-                            className={`text-xs cursor-pointer transition-all ${
-                              availability === "UNAVAILABLE"
-                                ? "bg-red-500 text-white border-0"
-                                : "bg-red-500/20 text-red-200 border-0 hover:bg-red-500/40"
-                            }`}
-                          >
-                            <X className="h-3 w-3 mr-1" />
-                            Not Available
-                          </Badge>
-                          <Badge
-                            onClick={() => handleAvailabilityChange(game.id, "UNSURE")}
-                            className={`text-xs cursor-pointer transition-all ${
-                              availability === "UNSURE"
-                                ? "bg-yellow-500 text-white border-0"
-                                : "bg-yellow-500/20 text-yellow-200 border-0 hover:bg-yellow-500/40"
-                            }`}
-                          >
-                            <HelpCircle className="h-3 w-3 mr-1" />
-                            Unsure
-                          </Badge>
-                        </div>
-                      ) : null}
+                      {/* Availability buttons */}
+                      <div className="flex gap-2" onClick={(e) => e.preventDefault()}>
+                        {(["AVAILABLE", "UNAVAILABLE", "UNSURE"] as const).map((status) => {
+                          const config = {
+                            AVAILABLE: { icon: Check, label: "Available", active: "bg-green-500 text-white", inactive: "bg-green-500/20 text-green-200" },
+                            UNAVAILABLE: { icon: X, label: "Not Available", active: "bg-red-500 text-white", inactive: "bg-red-500/20 text-red-200" },
+                            UNSURE: { icon: HelpCircle, label: "Unsure", active: "bg-yellow-500 text-white", inactive: "bg-yellow-500/20 text-yellow-200" },
+                          };
+                          const c = config[status];
+                          const Icon = c.icon;
+                          return (
+                            <Badge
+                              key={status}
+                              onClick={() => handleAvailabilityChange(game.id, status)}
+                              className={`text-xs cursor-pointer transition-all border-0 ${
+                                avail === status ? c.active : `${c.inactive} hover:opacity-80`
+                              }`}
+                            >
+                              <Icon className="h-3 w-3 mr-1" />
+                              {c.label}
+                            </Badge>
+                          );
+                        })}
+                      </div>
                     </Link>
                   );
                 })
               )}
             </CardContent>
           </Card>
-
         </div>
 
-        {/* Right Column */}
+        {/* Right Column - Calendar */}
         <div className="space-y-4">
-          {/* Calendar */}
           <Card className="bg-primary text-primary-foreground h-[260px]">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
@@ -324,12 +290,9 @@ const Dashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {/* 6-week calendar view */}
               <div className="grid grid-cols-7 gap-1 text-center text-xs">
                 {["M", "T", "W", "T", "F", "S", "S"].map((day, i) => (
-                  <div key={i} className="py-0.5 text-primary-foreground/70 font-medium">
-                    {day}
-                  </div>
+                  <div key={i} className="py-0.5 text-primary-foreground/70 font-medium">{day}</div>
                 ))}
                 {calendarDays.map((day, i) => (
                   <div
@@ -348,74 +311,6 @@ const Dashboard = () => {
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Upcoming Games For You */}
-          <Card className="bg-primary text-primary-foreground">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold text-primary-foreground">
-                Upcoming games for you
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {upcomingForYou.length === 0 ? (
-                <p className="text-primary-foreground/70 text-sm">No upcoming games for you</p>
-              ) : (
-                upcomingForYou.slice(0, 4).map((game) => {
-                  const coachSelection = mockCoachSelections[game.id];
-                  const isSelected = coachSelection?.status === "SELECTED";
-                  const isAwaiting = !coachSelection; // Not in the list = awaiting
-
-                  return (
-                    <Link
-                      key={game.id}
-                      to={`/games/${game.id}`}
-                      className={`block p-3 rounded-lg bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors border-2 ${
-                        isSelected
-                          ? "border-green-500"
-                          : isAwaiting
-                          ? "border-orange-400"
-                          : "border-transparent"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium">
-                          {game.homeTeamName} vs {game.awayTeamName}
-                        </p>
-                        {isSelected && coachSelection?.position && (
-                          <Badge className="bg-green-500 text-white border-0 text-xs">
-                            {coachSelection.position}
-                          </Badge>
-                        )}
-                        {isAwaiting && (
-                          <Badge className="bg-orange-400 text-white border-0 text-xs">
-                            Awaiting selection
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-primary-foreground/70">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {new Date(game.date).toLocaleDateString("en-AU", {
-                            weekday: "short",
-                            day: "numeric",
-                            month: "short",
-                          })}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {game.startTime}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {game.location}
-                        </span>
-                      </div>
-                    </Link>
-                  );
-                })
-              )}
             </CardContent>
           </Card>
         </div>
