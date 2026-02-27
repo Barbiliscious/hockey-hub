@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { ChevronLeft, Mail, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-
+import fieldBg from "@/assets/Field_1.png";
 
 const ForgotPassword = () => {
   const { toast } = useToast();
@@ -132,10 +132,10 @@ const ForgotPassword = () => {
 
       {/* Right side - Branding */}
       <div
-        className="hidden lg:flex flex-1 items-center justify-center relative bg-primary"
-        
+        className="hidden lg:flex flex-1 items-center justify-center relative overflow-hidden"
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/95 via-primary/85 to-accent/60" />
+        <img src={fieldBg} alt="Hockey field" className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/80 via-primary/60 to-accent/40" />
         <div className="relative z-10 text-center p-8">
           <h2 className="font-display text-5xl text-primary-foreground mb-4">
             GRAMPIANS HOCKEY

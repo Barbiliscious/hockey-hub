@@ -8,6 +8,7 @@ import {
   MessageCircle,
   ChevronRight,
 } from "lucide-react";
+import fieldBg from "@/assets/Field_1.png";
 
 const Landing = () => {
   return (
@@ -15,11 +16,10 @@ const Landing = () => {
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
         {/* Field background image */}
-        <div
-          className="absolute inset-0 z-0 bg-primary"
-          style={{
-            backgroundImage: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary)/0.8) 100%)",
-          }}
+        <img
+          src={fieldBg}
+          alt="Hockey field"
+          className="absolute inset-0 z-0 w-full h-full object-cover"
         />
         {/* Dark overlay for text readability */}
         <div className="absolute inset-0 z-[1] bg-primary/40" />

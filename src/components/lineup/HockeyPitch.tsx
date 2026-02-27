@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import fieldBg from "@/assets/Field_2.png";
 
 interface HockeyPitchProps {
   children: React.ReactNode;
@@ -69,65 +70,12 @@ export const HockeyPitch = ({ children, className }: HockeyPitchProps) => {
       )}
       style={{ aspectRatio: "1000 / 620" }}
     >
-      {/* SVG Pitch */}
-      <svg
-        viewBox="0 0 1000 620"
-        xmlns="http://www.w3.org/2000/svg"
-        className="absolute inset-0 w-full h-full"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        {/* Blue surround */}
-        <rect x="0" y="0" width="1000" height="620" fill="#1a3a6b" />
-
-        {/* Green field */}
-        <rect x={FIELD_X} y={FIELD_Y} width={FIELD_W} height={FIELD_H} fill="#2d8a4e" />
-
-        {/* White boundary line */}
-        <rect
-          x={FIELD_X + 4}
-          y={FIELD_Y + 4}
-          width={FIELD_W - 8}
-          height={FIELD_H - 8}
-          fill="none"
-          stroke="white"
-          strokeWidth="2.5"
-        />
-
-        {/* Center line */}
-        <line x1={CENTER_X_LINE} y1={FIELD_Y + 4} x2={CENTER_X_LINE} y2={FIELD_B - 4} stroke="white" strokeWidth="2" />
-
-        {/* 23m lines */}
-        <line x1={LINE_23_LEFT} y1={FIELD_Y + 4} x2={LINE_23_LEFT} y2={FIELD_B - 4} stroke="white" strokeWidth="1.5" />
-        <line x1={LINE_23_RIGHT} y1={FIELD_Y + 4} x2={LINE_23_RIGHT} y2={FIELD_B - 4} stroke="white" strokeWidth="1.5" />
-
-        {/* Left D arc */}
-        <path d={leftD} fill="none" stroke="white" strokeWidth="2.5" />
-        {/* Right D arc */}
-        <path d={rightD} fill="none" stroke="white" strokeWidth="2.5" />
-
-        {/* Dotted arcs */}
-        <path d={leftDotArc} fill="none" stroke="white" strokeWidth="2" strokeDasharray="4 8" />
-        <path d={rightDotArc} fill="none" stroke="white" strokeWidth="2" strokeDasharray="4 8" />
-
-        {/* Penalty spots */}
-        <circle cx={FIELD_X + penSpotOffset} cy={MID_Y} r="4" fill="white" />
-        <circle cx={FIELD_R - penSpotOffset} cy={MID_Y} r="4" fill="white" />
-
-        {/* Left goal */}
-        <rect x={FIELD_X - GOAL_W} y={MID_Y - GOAL_H / 2} width={GOAL_W} height={GOAL_H} fill="#1a3a6b" stroke="white" strokeWidth="2" />
-        {/* Left goal posts */}
-        <rect x={FIELD_X - GOAL_W - 4} y={MID_Y - GOAL_H / 2 - 3} width={6} height={8} fill="#b0b0b0" />
-        <rect x={FIELD_X - GOAL_W - 4} y={MID_Y + GOAL_H / 2 - 5} width={6} height={8} fill="#b0b0b0" />
-
-        {/* Right goal */}
-        <rect x={FIELD_R} y={MID_Y - GOAL_H / 2} width={GOAL_W} height={GOAL_H} fill="#1a3a6b" stroke="white" strokeWidth="2" />
-        {/* Right goal posts */}
-        <rect x={FIELD_R + GOAL_W - 2} y={MID_Y - GOAL_H / 2 - 3} width={6} height={8} fill="#b0b0b0" />
-        <rect x={FIELD_R + GOAL_W - 2} y={MID_Y + GOAL_H / 2 - 5} width={6} height={8} fill="#b0b0b0" />
-
-        {/* Tick marks */}
-        {ticks}
-      </svg>
+      {/* Field background image */}
+      <img
+        src={fieldBg}
+        alt="Hockey pitch"
+        className="absolute inset-0 w-full h-full object-cover"
+      />
 
       {/* Players overlay */}
       <div className="absolute inset-0">
