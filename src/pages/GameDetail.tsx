@@ -2,6 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   ChevronLeft,
   MapPin,
@@ -12,16 +13,143 @@ import {
   X,
   HelpCircle,
 } from "lucide-react";
-import { mockGames, mockPlayers, type AvailabilityStatus } from "@/lib/mockData";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTeamContext } from "@/contexts/TeamContext";
+import { supabase } from "@/integrations/supabase/client";
+
+type AvailabilityStatus = "AVAILABLE" | "UNAVAILABLE" | "UNSURE" | "PENDING";
+
+interface GameRow {
+  id: string;
+  team_id: string;
+  opponent_name: string;
+  game_date: string;
+  is_home: boolean;
+  location: string | null;
+  status: string;
+  home_score: number | null;
+  away_score: number | null;
+}
+
+interface TeamMember {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  position: string | null;
+  jersey_number: number | null;
+  availability_status: AvailabilityStatus;
+}
 
 const GameDetail = () => {
   const { id } = useParams();
   const { toast } = useToast();
-  const game = mockGames.find((g) => g.id === id);
-  const [availability, setAvailability] = useState<AvailabilityStatus>("AVAILABLE");
+  const { user } = useAuth();
+  const { selectedTeam } = useTeamContext();
+  const [game, setGame] = useState<GameRow | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [availability, setAvailability] = useState<AvailabilityStatus>("PENDING");
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+
+  useEffect(() => {
+    const fetchGame = async () => {
+      if (!id) return;
+      setLoading(true);
+
+      const { data: gameData } = await supabase
+        .from("games")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (gameData) {
+        setGame(gameData);
+
+        // Fetch current user's availability
+        if (user) {
+          const { data: avail } = await supabase
+            .from("game_availability")
+            .select("status")
+            .eq("game_id", id)
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (avail) setAvailability(avail.status as AvailabilityStatus);
+        }
+
+        // Fetch team members with their availability for this game
+        const { data: members } = await supabase
+          .from("team_memberships")
+          .select("user_id, position, jersey_number")
+          .eq("team_id", gameData.team_id)
+          .eq("status", "APPROVED");
+
+        if (members && members.length > 0) {
+          const userIds = members.map((m) => m.user_id);
+
+          const [profilesRes, availRes] = await Promise.all([
+            supabase.from("profiles").select("id, first_name, last_name").in("id", userIds),
+            supabase.from("game_availability").select("user_id, status").eq("game_id", id).in("user_id", userIds),
+          ]);
+
+          const profiles = profilesRes.data || [];
+          const avails = availRes.data || [];
+
+          const merged: TeamMember[] = members.map((m) => {
+            const profile = profiles.find((p) => p.id === m.user_id);
+            const avail = avails.find((a) => a.user_id === m.user_id);
+            return {
+              user_id: m.user_id,
+              first_name: profile?.first_name || null,
+              last_name: profile?.last_name || null,
+              position: m.position,
+              jersey_number: m.jersey_number,
+              availability_status: (avail?.status as AvailabilityStatus) || "PENDING",
+            };
+          });
+          setTeamMembers(merged);
+        }
+      }
+      setLoading(false);
+    };
+    fetchGame();
+  }, [id, user]);
+
+  const handleAvailability = async (status: AvailabilityStatus) => {
+    if (!user || !id) return;
+
+    const { error } = await supabase
+      .from("game_availability")
+      .upsert(
+        { game_id: id, user_id: user.id, status },
+        { onConflict: "game_id,user_id" }
+      );
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update availability.",
+        variant: "destructive",
+      });
+    } else {
+      setAvailability(status);
+      toast({
+        title: "Availability Updated",
+        description: `You are now marked as ${status.toLowerCase()}.`,
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <Skeleton className="h-8 w-32" />
+        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
 
   if (!game) {
     return (
@@ -34,17 +162,13 @@ const GameDetail = () => {
     );
   }
 
-  const handleAvailability = (status: AvailabilityStatus) => {
-    setAvailability(status);
-    toast({
-      title: "Availability Updated",
-      description: `You are now marked as ${status.toLowerCase()}.`,
-    });
-  };
+  const teamName = selectedTeam?.name || "Team";
+  const homeTeam = game.is_home ? teamName : game.opponent_name;
+  const awayTeam = game.is_home ? game.opponent_name : teamName;
+  const gameDate = new Date(game.game_date);
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Back Button */}
       <Link to="/games">
         <Button variant="ghost" size="sm" className="gap-2">
           <ChevronLeft className="h-4 w-4" />
@@ -56,56 +180,45 @@ const GameDetail = () => {
       <Card variant="gradient">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <Badge
-              variant={game.isClubTeamGame ? "default" : "outline"}
-              className="text-sm"
-            >
-              {game.grade}
+            <Badge variant={game.is_home ? "default" : "outline"} className="text-sm">
+              {game.is_home ? "Home" : "Away"}
             </Badge>
-            <Badge variant={game.status === "SCHEDULED" ? "scheduled" : "finalised"}>
+            <Badge variant={game.status === "scheduled" ? "scheduled" : "finalised"}>
               {game.status}
             </Badge>
           </div>
 
           <div className="text-center py-8">
-            <p className="font-display text-3xl md:text-4xl text-foreground">
-              {game.homeTeamName}
-            </p>
+            <p className="font-display text-3xl md:text-4xl text-foreground">{homeTeam}</p>
             <p className="text-muted-foreground text-xl my-3">vs</p>
-            <p className="font-display text-3xl md:text-4xl text-foreground">
-              {game.awayTeamName}
-            </p>
+            <p className="font-display text-3xl md:text-4xl text-foreground">{awayTeam}</p>
           </div>
 
           <div className="grid grid-cols-3 gap-4 text-center py-4 border-t border-border">
             <div>
               <Calendar className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
               <p className="text-sm font-medium text-foreground">
-                {new Date(game.date).toLocaleDateString("en-AU", {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                })}
+                {gameDate.toLocaleDateString("en-AU", { weekday: "short", month: "short", day: "numeric" })}
               </p>
             </div>
             <div>
               <Clock className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
               <p className="text-sm font-medium text-foreground">
-                {game.startTime}
+                {gameDate.toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" })}
               </p>
             </div>
             <div>
               <MapPin className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
               <p className="text-sm font-medium text-foreground truncate px-2">
-                {game.location}
+                {game.location || "TBD"}
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Availability Section (only for club games) */}
-      {game.isClubTeamGame && game.status === "SCHEDULED" && (
+      {/* Availability Section */}
+      {game.status === "scheduled" && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Your Availability</CardTitle>
@@ -115,93 +228,61 @@ const GameDetail = () => {
               Let your coach know if you can play in this match.
             </p>
             <div className="grid grid-cols-3 gap-3">
-              <AvailabilityButton
-                status="AVAILABLE"
-                current={availability}
-                onClick={() => handleAvailability("AVAILABLE")}
-                icon={<Check className="h-5 w-5" />}
-                label="Available"
-              />
-              <AvailabilityButton
-                status="UNAVAILABLE"
-                current={availability}
-                onClick={() => handleAvailability("UNAVAILABLE")}
-                icon={<X className="h-5 w-5" />}
-                label="Unavailable"
-              />
-              <AvailabilityButton
-                status="UNSURE"
-                current={availability}
-                onClick={() => handleAvailability("UNSURE")}
-                icon={<HelpCircle className="h-5 w-5" />}
-                label="Unsure"
-              />
+              <AvailabilityButton status="AVAILABLE" current={availability} onClick={() => handleAvailability("AVAILABLE")} icon={<Check className="h-5 w-5" />} label="Available" />
+              <AvailabilityButton status="UNAVAILABLE" current={availability} onClick={() => handleAvailability("UNAVAILABLE")} icon={<X className="h-5 w-5" />} label="Unavailable" />
+              <AvailabilityButton status="UNSURE" current={availability} onClick={() => handleAvailability("UNSURE")} icon={<HelpCircle className="h-5 w-5" />} label="Unsure" />
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Team Selection */}
-      {game.isClubTeamGame && (
+      {/* Team Members & Availability */}
+      {teamMembers.length > 0 && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Team Selection</CardTitle>
-            <Badge variant="starter">Starter</Badge>
+          <CardHeader>
+            <CardTitle className="text-lg">Team Availability</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground text-sm mb-4">
-              You have been selected as a <strong>starter</strong> for this
-              match.
-            </p>
-
-            <div className="space-y-3">
-              <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                Selected Players
-              </h4>
-              <div className="grid gap-2">
-                {mockPlayers.slice(0, 6).map((player) => (
-                  <div
-                    key={player.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
-                        {player.number}
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{player.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {player.position}
-                        </p>
-                      </div>
+            <div className="space-y-2">
+              {teamMembers.map((member) => (
+                <div key={member.user_id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
+                      {member.jersey_number || "?"}
                     </div>
-                    <Badge variant="starter" className="text-xs">
-                      Starter
-                    </Badge>
+                    <div>
+                      <p className="font-medium text-sm">
+                        {[member.first_name, member.last_name].filter(Boolean).join(" ") || "Unknown"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{member.position || "No position"}</p>
+                    </div>
                   </div>
-                ))}
-              </div>
+                  <Badge
+                    variant={
+                      member.availability_status === "AVAILABLE" ? "available" :
+                      member.availability_status === "UNAVAILABLE" ? "destructive" :
+                      member.availability_status === "UNSURE" ? "secondary" : "outline"
+                    }
+                    className="text-xs"
+                  >
+                    {member.availability_status === "PENDING" ? "No response" : member.availability_status}
+                  </Badge>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
       )}
 
       {/* Actions */}
-      {game.isClubTeamGame && (
-        <div className="flex gap-3">
-          <Link to={`/games/${id}/lineup`} className="flex-1">
-            <Button variant="default" className="w-full">
-              <Users className="h-4 w-4 mr-2" />
-              View Lineup
-            </Button>
-          </Link>
-          {game.status === "FINALISED" && (
-            <Button variant="secondary" className="flex-1">
-              Vote Now
-            </Button>
-          )}
-        </div>
-      )}
+      <div className="flex gap-3">
+        <Link to={`/games/${id}/lineup`} className="flex-1">
+          <Button variant="default" className="w-full">
+            <Users className="h-4 w-4 mr-2" />
+            View Lineup
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 };
@@ -214,28 +295,13 @@ interface AvailabilityButtonProps {
   label: string;
 }
 
-const AvailabilityButton = ({
-  status,
-  current,
-  onClick,
-  icon,
-  label,
-}: AvailabilityButtonProps) => {
+const AvailabilityButton = ({ status, current, onClick, icon, label }: AvailabilityButtonProps) => {
   const isSelected = status === current;
-
   const variants = {
-    AVAILABLE: {
-      selected: "bg-success text-success-foreground border-success",
-      default: "border-success/50 text-success hover:bg-success/10",
-    },
-    UNAVAILABLE: {
-      selected: "bg-destructive text-destructive-foreground border-destructive",
-      default: "border-destructive/50 text-destructive hover:bg-destructive/10",
-    },
-    UNSURE: {
-      selected: "bg-warning text-warning-foreground border-warning",
-      default: "border-warning/50 text-warning-foreground hover:bg-warning/10",
-    },
+    AVAILABLE: { selected: "bg-success text-success-foreground border-success", default: "border-success/50 text-success hover:bg-success/10" },
+    UNAVAILABLE: { selected: "bg-destructive text-destructive-foreground border-destructive", default: "border-destructive/50 text-destructive hover:bg-destructive/10" },
+    UNSURE: { selected: "bg-warning text-warning-foreground border-warning", default: "border-warning/50 text-warning-foreground hover:bg-warning/10" },
+    PENDING: { selected: "", default: "" },
   };
 
   return (
