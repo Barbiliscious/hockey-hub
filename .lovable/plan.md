@@ -1,38 +1,104 @@
 
+## Plan: App Mode System (Admin Mode vs Player Mode)
 
-## Plan: Update Team Display to "{Division} {Gender}" Format
+### Status: Planning — awaiting approval to implement
 
-### Current State
-- 36 teams across 12 clubs, each with Open (gender=Mixed), Women, Juniors
-- Names stored as "{Club} Open", "{Club} Women", "{Club} Juniors"
-- Junior teams have no division, gender="Mixed"
-- Need to expand each club's 1 Junior team into 4 age-group teams
+### Previous Plans
+- ✅ Team Display Update (complete)
 
-### Data Changes (via insert tool)
+---
 
-1. **Delete** 12 Junior teams (confirmed no memberships/games linked)
-2. **Insert** 48 new teams (4 per club): Under 11 Open, Under 12 Open, Under 14 Open, Under 16 Open
-3. **Update** existing Open teams: gender "Mixed" → "Open", name → "Division 1 Open"
-4. **Update** existing Women teams: name → "Division 1 Women"
+### Concept
 
-### Code Changes
+The app operates in two distinct **modes** based on the user's roles:
+
+1. **Admin Mode** — For users with admin roles (SUPER_ADMIN, ASSOCIATION_ADMIN, CLUB_ADMIN). Shows admin-specific navigation, dashboard, and features. Profile icon leads to **Association Settings page** (full branding/config page for the association).
+
+2. **Player Mode** — For users with player/coach roles. Shows player-specific navigation (Dashboard, Fixtures, Stats, Chat). Profile icon leads to **personal profile page** (existing Profile.tsx).
+
+Users with **both** admin and player roles see a **"Switch Mode"** button in the **sidebar footer** to toggle between modes.
+
+---
+
+### Architecture
+
+#### New Context: `AppModeContext`
+
+| Field | Type | Description |
+|---|---|---|
+| `mode` | `"admin" \| "player"` | Current active mode |
+| `setMode` | function | Switch mode |
+| `canSwitchMode` | boolean | True if user has both admin and player/coach roles |
+| `availableModes` | string[] | Which modes the user can access |
+
+- On login, mode defaults to `"admin"` if user has any admin role, otherwise `"player"`
+- Persisted to `localStorage` so it survives page refreshes
+
+#### Navigation Changes
+
+**Admin Mode nav** (completely different sidebar):
+- Dashboard (admin dashboard with stats tiles)
+- Associations (SUPER_ADMIN only)
+- Clubs
+- Teams
+- Users
+
+**Player Mode nav** (existing player sidebar):
+- Dashboard
+- Fixtures
+- Statistics
+- Chat
+
+#### Profile Icon Behavior
+
+| Mode | Profile icon destination |
+|---|---|
+| Admin | `/admin/association-profile` — new page showing association name, logo, stats, settings |
+| Player | `/profile` — existing personal profile page |
+
+#### Login Redirect
+
+- After login, query `user_roles`
+- If admin role found → set mode to `"admin"`, navigate to `/admin`
+- Otherwise → set mode to `"player"`, navigate to `/dashboard`
+
+#### Sidebar Footer Mode Switcher
+
+- Only visible if `canSwitchMode` is true
+- Shows current mode label + toggle button
+- Example: "Admin Mode" with a "Switch to Player" button (or vice versa)
+
+---
+
+### Files to Create
+
+| File | Purpose |
+|---|---|
+| `src/contexts/AppModeContext.tsx` | Mode state context with localStorage persistence |
+| `src/pages/admin/AssociationProfile.tsx` | Association detail/settings page (logo, name, stats, config) |
+
+### Files to Modify
 
 | File | Change |
 |---|---|
-| `src/lib/utils.ts` | Add `getTeamDisplayName(team)` — returns `{division} {gender}` falling back to `team.name` |
-| `src/components/layout/AppLayout.tsx` (line 241) | Team selector: show `getTeamDisplayName(team)` instead of `team.name` |
-| `src/pages/Dashboard.tsx` | Use helper for `teamName` |
-| `src/pages/Games.tsx` | Use helper for `teamName` |
-| `src/pages/GameDetail.tsx` | Use helper for `teamName` |
-| `src/pages/Lineup.tsx` | Use helper for `teamName` |
-| `src/pages/admin/TeamsManagement.tsx` | Replace free-text division/gender inputs with dropdowns (Division 1, Division 2, Under 11, Under 12, Under 14, Under 16 / Open, Women). Auto-generate name as `{Division} {Gender}` on save. |
+| `src/App.tsx` | Wrap with `AppModeProvider`, add `/admin/association-profile` route |
+| `src/components/layout/AppLayout.tsx` | Use `mode` to show different nav sets; add mode switcher in sidebar footer; change profile icon destination based on mode |
+| `src/pages/Login.tsx` | After login, query roles and set initial mode + redirect |
+| `src/contexts/TeamContext.tsx` | Remove auto-select logic (selectors start empty) |
 
-### Helper Function
+### Selection Logic (deferred from previous plan)
 
-```typescript
-export function getTeamDisplayName(team: { division?: string | null; gender?: string | null; name: string }) {
-  if (team.division && team.gender) return `${team.division} ${team.gender}`;
-  return team.name;
-}
-```
+- **Super Admin**: No auto-selection of association/club/team — selectors start empty
+- **Association Admin**: Auto-select and lock their scoped association
+- Mode switcher respects scoping
 
+---
+
+### Implementation Order
+
+1. Create `AppModeContext` with mode state + localStorage persistence
+2. Update `AppLayout` — mode-based nav, sidebar footer switcher, profile icon routing
+3. Create `AssociationProfile` page
+4. Update `Login.tsx` — role-based redirect + initial mode
+5. Remove auto-select in `TeamContext`
+6. Update plan as done
