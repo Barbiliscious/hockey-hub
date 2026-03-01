@@ -1,104 +1,80 @@
 
-## Plan: App Mode System (Admin Mode vs Player Mode)
 
-### Status: Planning — awaiting approval to implement
+## Plan: 5-Mode App System
 
-### Previous Plans
-- ✅ Team Display Update (complete)
+### Modes
 
----
+| Mode | Roles | Landing | Profile Icon | Nav Items |
+|---|---|---|---|---|
+| **Super Admin** | SUPER_ADMIN | `/admin` | Association settings page | Associations, Clubs, Teams, Users |
+| **Association** | ASSOCIATION_ADMIN | `/admin` | Association settings page (scoped) | Clubs, Teams, Users |
+| **Club** | CLUB_ADMIN | `/admin` | Club settings page | Teams, Users, Club Settings |
+| **Team** | TEAM_MANAGER, COACH | `/dashboard` | Personal profile | Dashboard, Fixtures, Lineups, Roster, Chat |
+| **Player** | PLAYER (or no admin role) | `/dashboard` | Personal profile | Dashboard, Fixtures, Stats, Chat |
 
-### Concept
+### How It Works
 
-The app operates in two distinct **modes** based on the user's roles:
-
-1. **Admin Mode** — For users with admin roles (SUPER_ADMIN, ASSOCIATION_ADMIN, CLUB_ADMIN). Shows admin-specific navigation, dashboard, and features. Profile icon leads to **Association Settings page** (full branding/config page for the association).
-
-2. **Player Mode** — For users with player/coach roles. Shows player-specific navigation (Dashboard, Fixtures, Stats, Chat). Profile icon leads to **personal profile page** (existing Profile.tsx).
-
-Users with **both** admin and player roles see a **"Switch Mode"** button in the **sidebar footer** to toggle between modes.
-
----
-
-### Architecture
-
-#### New Context: `AppModeContext`
-
-| Field | Type | Description |
-|---|---|---|
-| `mode` | `"admin" \| "player"` | Current active mode |
-| `setMode` | function | Switch mode |
-| `canSwitchMode` | boolean | True if user has both admin and player/coach roles |
-| `availableModes` | string[] | Which modes the user can access |
-
-- On login, mode defaults to `"admin"` if user has any admin role, otherwise `"player"`
-- Persisted to `localStorage` so it survives page refreshes
-
-#### Navigation Changes
-
-**Admin Mode nav** (completely different sidebar):
-- Dashboard (admin dashboard with stats tiles)
-- Associations (SUPER_ADMIN only)
-- Clubs
-- Teams
-- Users
-
-**Player Mode nav** (existing player sidebar):
-- Dashboard
-- Fixtures
-- Statistics
-- Chat
-
-#### Profile Icon Behavior
-
-| Mode | Profile icon destination |
-|---|---|
-| Admin | `/admin/association-profile` — new page showing association name, logo, stats, settings |
-| Player | `/profile` — existing personal profile page |
-
-#### Login Redirect
-
-- After login, query `user_roles`
-- If admin role found → set mode to `"admin"`, navigate to `/admin`
-- Otherwise → set mode to `"player"`, navigate to `/dashboard`
-
-#### Sidebar Footer Mode Switcher
-
-- Only visible if `canSwitchMode` is true
-- Shows current mode label + toggle button
-- Example: "Admin Mode" with a "Switch to Player" button (or vice versa)
-
----
+- **On login**: query `user_roles`, determine highest role, set initial mode accordingly, redirect to appropriate landing page.
+- **Mode switching**: Users with multiple role levels see a "Switch Mode" button in the sidebar footer. Only modes the user actually has roles for are available.
+- **Mode persisted** to `localStorage` so it survives refreshes.
+- **Navigation completely changes** per mode -- each mode has its own sidebar nav set.
+- **Header selectors** (association/club/team) adapt per mode: Super Admin sees all unlocked; Association Admin has their association locked; Club Admin has association+club locked; Team/Player modes show their team context.
 
 ### Files to Create
 
 | File | Purpose |
 |---|---|
-| `src/contexts/AppModeContext.tsx` | Mode state context with localStorage persistence |
-| `src/pages/admin/AssociationProfile.tsx` | Association detail/settings page (logo, name, stats, config) |
+| `src/contexts/AppModeContext.tsx` | Mode state, available modes from roles, localStorage persistence, mode switcher logic |
+| `src/pages/admin/AssociationProfile.tsx` | Full association settings/branding page (name, logo, stats, config) |
 
 ### Files to Modify
 
 | File | Change |
 |---|---|
 | `src/App.tsx` | Wrap with `AppModeProvider`, add `/admin/association-profile` route |
-| `src/components/layout/AppLayout.tsx` | Use `mode` to show different nav sets; add mode switcher in sidebar footer; change profile icon destination based on mode |
-| `src/pages/Login.tsx` | After login, query roles and set initial mode + redirect |
-| `src/contexts/TeamContext.tsx` | Remove auto-select logic (selectors start empty) |
+| `src/components/layout/AppLayout.tsx` | Replace current nav logic with mode-based nav sets; add mode switcher in sidebar footer; change profile icon destination per mode; adapt header selectors per mode |
+| `src/pages/Login.tsx` | After login, query `user_roles`, set initial mode, redirect to mode's landing page |
+| `src/contexts/TeamContext.tsx` | Remove auto-select logic (lines 80-90) so selectors start empty |
+| `.lovable/plan.md` | Update with this plan |
 
-### Selection Logic (deferred from previous plan)
+### AppModeContext Shape
 
-- **Super Admin**: No auto-selection of association/club/team — selectors start empty
-- **Association Admin**: Auto-select and lock their scoped association
-- Mode switcher respects scoping
+```text
+type AppMode = "super_admin" | "association" | "club" | "team" | "player"
 
----
+interface AppModeContextType {
+  mode: AppMode
+  setMode: (mode: AppMode) => void
+  availableModes: AppMode[]       // derived from user_roles
+  canSwitchMode: boolean          // availableModes.length > 1
+}
+```
+
+Default mode on login = highest available mode. Persisted to `localStorage`.
+
+### Nav Sets Per Mode
+
+```text
+Super Admin:  Associations, Clubs, Teams, Users
+Association:  Clubs, Teams, Users
+Club:         Teams, Users, Club Settings
+Team:         Dashboard, Fixtures, Lineups, Roster, Chat
+Player:       Dashboard, Fixtures, Stats, Chat
+```
+
+### Sidebar Footer Mode Switcher
+
+- Only visible when `canSwitchMode` is true
+- Shows current mode label (e.g. "Association Mode")
+- Dropdown or list of other available modes to switch to
+- Placed above the Logout button
 
 ### Implementation Order
 
-1. Create `AppModeContext` with mode state + localStorage persistence
-2. Update `AppLayout` — mode-based nav, sidebar footer switcher, profile icon routing
+1. Create `AppModeContext` with mode derivation from roles + localStorage
+2. Update `AppLayout` -- mode-based nav, footer switcher, profile icon routing, header selector locking
 3. Create `AssociationProfile` page
-4. Update `Login.tsx` — role-based redirect + initial mode
+4. Update `Login.tsx` -- role query + mode-based redirect
 5. Remove auto-select in `TeamContext`
-6. Update plan as done
+6. Update `.lovable/plan.md`
+
