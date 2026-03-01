@@ -5,44 +5,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useNavigate } from "react-router-dom";
 import { Plus, Pencil, Trash2, Trophy, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRole } from "@/hooks/useUserRole";
+import { useAdminScope } from "@/hooks/useAdminScope";
 import type { Database } from "@/integrations/supabase/types";
 
 type Team = Database["public"]["Tables"]["teams"]["Row"];
@@ -56,8 +34,8 @@ interface TeamWithClub extends Team {
 const TeamsManagement = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { loading: roleLoading, isAdmin } = useUserRole();
-  
+  const { loading: scopeLoading, isSuperAdmin, isAnyAdmin, scopedTeamIds, scopedClubIds, scopedAssociationIds, canManageTeam } = useAdminScope();
+
   const [teams, setTeams] = useState<TeamWithClub[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [associations, setAssociations] = useState<Association[]>([]);
@@ -68,83 +46,66 @@ const TeamsManagement = () => {
   const [editingTeam, setEditingTeam] = useState<TeamWithClub | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingTeam, setDeletingTeam] = useState<TeamWithClub | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    club_id: "",
-    age_group: "",
-    division: "",
-    gender: "",
-  });
+  const [formData, setFormData] = useState({ name: "", club_id: "", age_group: "", division: "", gender: "" });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!roleLoading && !isAdmin()) {
-      navigate("/dashboard");
-    }
-  }, [roleLoading, isAdmin, navigate]);
+    if (!scopeLoading && !isAnyAdmin) navigate("/dashboard");
+  }, [scopeLoading, isAnyAdmin, navigate]);
 
   const fetchData = async () => {
     setLoading(true);
 
+    let teamsQuery = supabase.from("teams").select("*, clubs:club_id(name, association_id)").order("name");
+    if (!isSuperAdmin && scopedTeamIds.length > 0) {
+      teamsQuery = teamsQuery.in("id", scopedTeamIds);
+    } else if (!isSuperAdmin && scopedClubIds.length > 0) {
+      teamsQuery = teamsQuery.in("club_id", scopedClubIds);
+    }
+
     const [teamsRes, clubsRes, associationsRes] = await Promise.all([
-      supabase
-        .from("teams")
-        .select("*, clubs:club_id(name, association_id)")
-        .order("name"),
+      teamsQuery,
       supabase.from("clubs").select("*").order("name"),
       supabase.from("associations").select("*").order("name"),
     ]);
 
-    if (teamsRes.error) {
-      toast({ title: "Error", description: "Failed to load teams", variant: "destructive" });
-    } else {
-      setTeams(teamsRes.data || []);
-    }
-
+    if (teamsRes.error) toast({ title: "Error", description: "Failed to load teams", variant: "destructive" });
+    else setTeams(teamsRes.data || []);
     if (!clubsRes.error) setClubs(clubsRes.data || []);
     if (!associationsRes.error) setAssociations(associationsRes.data || []);
-
     setLoading(false);
   };
 
   useEffect(() => {
-    if (isAdmin()) {
-      fetchData();
-    }
-  }, [isAdmin]);
+    if (!scopeLoading && isAnyAdmin) fetchData();
+  }, [scopeLoading, isAnyAdmin]);
 
-  // Filter clubs based on selected association
-  const filteredClubsForDropdown = filterAssociation === "all"
+  // Scoped clubs for form dropdown
+  const formClubs = isSuperAdmin
     ? clubs
-    : clubs.filter((c) => c.association_id === filterAssociation);
+    : clubs.filter((c) => scopedClubIds.includes(c.id) || scopedAssociationIds.includes(c.association_id));
 
-  // Filter teams based on both filters
+  // Filter logic
+  const filteredClubsForDropdown = filterAssociation === "all"
+    ? (isSuperAdmin ? clubs : formClubs)
+    : (isSuperAdmin ? clubs : formClubs).filter((c) => c.association_id === filterAssociation);
+
   let filteredTeams = teams;
-  if (filterAssociation !== "all") {
-    filteredTeams = filteredTeams.filter((t) => t.clubs?.association_id === filterAssociation);
-  }
-  if (filterClub !== "all") {
-    filteredTeams = filteredTeams.filter((t) => t.club_id === filterClub);
-  }
+  if (filterAssociation !== "all") filteredTeams = filteredTeams.filter((t) => t.clubs?.association_id === filterAssociation);
+  if (filterClub !== "all") filteredTeams = filteredTeams.filter((t) => t.club_id === filterClub);
 
-  // Reset club filter when association changes
-  useEffect(() => {
-    setFilterClub("all");
-  }, [filterAssociation]);
+  useEffect(() => { setFilterClub("all"); }, [filterAssociation]);
+
+  const canAdd = isSuperAdmin || scopedAssociationIds.length > 0 || scopedClubIds.length > 0;
+  const canDelete = isSuperAdmin || scopedAssociationIds.length > 0 || scopedClubIds.length > 0;
 
   const handleOpenDialog = (team?: TeamWithClub) => {
     if (team) {
       setEditingTeam(team);
-      setFormData({
-        name: team.name,
-        club_id: team.club_id,
-        age_group: team.age_group || "",
-        division: team.division || "",
-        gender: team.gender || "",
-      });
+      setFormData({ name: team.name, club_id: team.club_id, age_group: team.age_group || "", division: team.division || "", gender: team.gender || "" });
     } else {
       setEditingTeam(null);
-      setFormData({ name: "", club_id: "", age_group: "", division: "", gender: "" });
+      setFormData({ name: "", club_id: formClubs.length === 1 ? formClubs[0].id : "", age_group: "", division: "", gender: "" });
     }
     setDialogOpen(true);
   };
@@ -154,217 +115,134 @@ const TeamsManagement = () => {
       toast({ title: "Error", description: "Name and Club are required", variant: "destructive" });
       return;
     }
-
     setSaving(true);
-
-    const teamData = {
-      name: formData.name.trim(),
-      club_id: formData.club_id,
-      age_group: formData.age_group.trim() || null,
-      division: formData.division.trim() || null,
-      gender: formData.gender || null,
-    };
+    const teamData = { name: formData.name.trim(), club_id: formData.club_id, age_group: formData.age_group.trim() || null, division: formData.division.trim() || null, gender: formData.gender || null };
 
     if (editingTeam) {
       const { error } = await supabase.from("teams").update(teamData).eq("id", editingTeam.id);
-
-      if (error) {
-        toast({ title: "Error", description: "Failed to update team", variant: "destructive" });
-      } else {
-        toast({ title: "Success", description: "Team updated" });
-        setDialogOpen(false);
-        fetchData();
-      }
+      if (error) toast({ title: "Error", description: "Failed to update team", variant: "destructive" });
+      else { toast({ title: "Success", description: "Team updated" }); setDialogOpen(false); fetchData(); }
     } else {
       const { error } = await supabase.from("teams").insert(teamData);
-
-      if (error) {
-        toast({ title: "Error", description: "Failed to create team", variant: "destructive" });
-      } else {
-        toast({ title: "Success", description: "Team created" });
-        setDialogOpen(false);
-        fetchData();
-      }
+      if (error) toast({ title: "Error", description: "Failed to create team", variant: "destructive" });
+      else { toast({ title: "Success", description: "Team created" }); setDialogOpen(false); fetchData(); }
     }
-
     setSaving(false);
   };
 
   const handleDelete = async () => {
     if (!deletingTeam) return;
-
     const { error } = await supabase.from("teams").delete().eq("id", deletingTeam.id);
-
-    if (error) {
-      toast({ title: "Error", description: "Failed to delete team. It may have members.", variant: "destructive" });
-    } else {
-      toast({ title: "Success", description: "Team deleted" });
-      fetchData();
-    }
-
+    if (error) toast({ title: "Error", description: "Failed to delete team. It may have members.", variant: "destructive" });
+    else { toast({ title: "Success", description: "Team deleted" }); fetchData(); }
     setDeleteDialogOpen(false);
     setDeletingTeam(null);
   };
 
-  if (roleLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-96" />
-      </div>
-    );
+  if (scopeLoading) {
+    return <div className="space-y-6"><Skeleton className="h-10 w-64" /><Skeleton className="h-96" /></div>;
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/admin")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/admin")}><ArrowLeft className="h-5 w-5" /></Button>
         <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight">Teams</h1>
           <p className="text-muted-foreground">Manage teams within clubs</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Team
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingTeam ? "Edit Team" : "Add Team"}</DialogTitle>
-              <DialogDescription>
-                {editingTeam ? "Update the team details" : "Create a new team"}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="club">Club *</Label>
-                <Select
-                  value={formData.club_id}
-                  onValueChange={(value) => setFormData({ ...formData, club_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select club" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clubs.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g., U16 Boys A"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+        {canAdd && (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => handleOpenDialog()}><Plus className="mr-2 h-4 w-4" />Add Team</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingTeam ? "Edit Team" : "Add Team"}</DialogTitle>
+                <DialogDescription>{editingTeam ? "Update details" : "Create a new team"}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="age_group">Age Group</Label>
-                  <Input
-                    id="age_group"
-                    value={formData.age_group}
-                    onChange={(e) => setFormData({ ...formData, age_group: e.target.value })}
-                    placeholder="e.g., U16"
-                  />
+                  <Label>Club *</Label>
+                  <Select value={formData.club_id} onValueChange={(v) => setFormData({ ...formData, club_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select club" /></SelectTrigger>
+                    <SelectContent>
+                      {formClubs.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="division">Division</Label>
-                  <Input
-                    id="division"
-                    value={formData.division}
-                    onChange={(e) => setFormData({ ...formData, division: e.target.value })}
-                    placeholder="e.g., Premier"
-                  />
+                  <Label>Name *</Label>
+                  <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g., Division 1 Open" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Age Group</Label>
+                    <Input value={formData.age_group} onChange={(e) => setFormData({ ...formData, age_group: e.target.value })} placeholder="e.g., U16" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Division</Label>
+                    <Input value={formData.division} onChange={(e) => setFormData({ ...formData, division: e.target.value })} placeholder="e.g., Premier" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Gender</Label>
+                  <Select value={formData.gender} onValueChange={(v) => setFormData({ ...formData, gender: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Open">Open</SelectItem>
+                      <SelectItem value="Women">Women</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="gender">Gender</Label>
-                <Select
-                  value={formData.gender}
-                  onValueChange={(value) => setFormData({ ...formData, gender: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Male">Male</SelectItem>
-                    <SelectItem value="Female">Female</SelectItem>
-                    <SelectItem value="Mixed">Mixed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? "Saving..." : editingTeam ? "Update" : "Create"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleSave} disabled={saving}>{saving ? "Saving..." : editingTeam ? "Update" : "Create"}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <Label>Association:</Label>
-          <Select value={filterAssociation} onValueChange={setFilterAssociation}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              {associations.map((a) => (
-                <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {(isSuperAdmin || scopedAssociationIds.length > 0) && (
+          <div className="flex items-center gap-2">
+            <Label>Association:</Label>
+            <Select value={filterAssociation} onValueChange={setFilterAssociation}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {(isSuperAdmin ? associations : associations.filter((a) => scopedAssociationIds.includes(a.id))).map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <Label>Club:</Label>
           <Select value={filterClub} onValueChange={setFilterClub}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
-              {filteredClubsForDropdown.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
+              {filteredClubsForDropdown.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Trophy className="h-5 w-5" />
-            Teams
-          </CardTitle>
+          <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5" />Teams</CardTitle>
           <CardDescription>{filteredTeams.length} team(s)</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
+            <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
           ) : filteredTeams.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No teams found. Create your first one!
-            </div>
+            <div className="text-center py-8 text-muted-foreground">No teams found.</div>
           ) : (
             <Table>
               <TableHeader>
@@ -386,19 +264,16 @@ const TeamsManagement = () => {
                     <TableCell>{team.division || "-"}</TableCell>
                     <TableCell>{team.gender || "-"}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(team)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setDeletingTeam(team);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      {canManageTeam(team.id) && (
+                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(team)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canDelete && canManageTeam(team.id) && (
+                        <Button variant="ghost" size="icon" onClick={() => { setDeletingTeam(team); setDeleteDialogOpen(true); }}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -408,20 +283,15 @@ const TeamsManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Team?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete "{deletingTeam?.name}" and remove all team memberships.
-            </AlertDialogDescription>
+            <AlertDialogDescription>This will permanently delete "{deletingTeam?.name}" and remove all memberships.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
-              Delete
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -31,12 +31,14 @@ import {
   Building2,
   Shield,
   Globe,
+  ShieldCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTestRole } from "@/contexts/TestRoleContext";
 import { useTeamContext } from "@/contexts/TeamContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminScope } from "@/hooks/useAdminScope";
 import { supabase } from "@/integrations/supabase/client";
 import type { Role } from "@/lib/mockData";
 
@@ -100,6 +102,7 @@ const AppLayout = () => {
   const navigate = useNavigate();
   const { testRole } = useTestRole();
   const { user } = useAuth();
+  const { isAnyAdmin } = useAdminScope();
   const {
     associations,
     selectedAssociationId,
@@ -137,7 +140,11 @@ const AppLayout = () => {
     setIsAssociationPopoverOpen(false);
   };
 
-  const navItems = getNavItems(testRole);
+  // Build nav items: base + admin link if user has any admin/manager/coach role
+  const navItems = [
+    ...getNavItems(testRole),
+    ...(isAnyAdmin ? [{ path: "/admin", label: "Admin", icon: ShieldCheck }] : []),
+  ];
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const handleLogout = async () => {
