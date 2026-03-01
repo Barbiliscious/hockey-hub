@@ -20,6 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Pencil, Trash2, Trophy, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { getTeamDisplayName } from "@/lib/utils";
 import { useAdminScope } from "@/hooks/useAdminScope";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -116,7 +117,8 @@ const TeamsManagement = () => {
       return;
     }
     setSaving(true);
-    const teamData = { name: formData.name.trim(), club_id: formData.club_id, age_group: formData.age_group.trim() || null, division: formData.division.trim() || null, gender: formData.gender || null };
+    const autoName = formData.division && formData.gender ? `${formData.division} ${formData.gender}` : formData.name.trim();
+    const teamData = { name: autoName, club_id: formData.club_id, age_group: formData.age_group.trim() || null, division: formData.division.trim() || null, gender: formData.gender || null };
 
     if (editingTeam) {
       const { error } = await supabase.from("teams").update(teamData).eq("id", editingTeam.id);
@@ -172,28 +174,34 @@ const TeamsManagement = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Name *</Label>
-                  <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g., Division 1 Open" />
+                  <Label>Name (auto-generated)</Label>
+                  <Input value={formData.division && formData.gender ? `${formData.division} ${formData.gender}` : formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Set division & gender" disabled={!!(formData.division && formData.gender)} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Age Group</Label>
-                    <Input value={formData.age_group} onChange={(e) => setFormData({ ...formData, age_group: e.target.value })} placeholder="e.g., U16" />
+                    <Label>Division *</Label>
+                    <Select value={formData.division} onValueChange={(v) => setFormData({ ...formData, division: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select division" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Division 1">Division 1</SelectItem>
+                        <SelectItem value="Division 2">Division 2</SelectItem>
+                        <SelectItem value="Under 11">Under 11</SelectItem>
+                        <SelectItem value="Under 12">Under 12</SelectItem>
+                        <SelectItem value="Under 14">Under 14</SelectItem>
+                        <SelectItem value="Under 16">Under 16</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Division</Label>
-                    <Input value={formData.division} onChange={(e) => setFormData({ ...formData, division: e.target.value })} placeholder="e.g., Premier" />
+                    <Label>Gender *</Label>
+                    <Select value={formData.gender} onValueChange={(v) => setFormData({ ...formData, gender: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Open">Open</SelectItem>
+                        <SelectItem value="Women">Women</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Gender</Label>
-                  <Select value={formData.gender} onValueChange={(v) => setFormData({ ...formData, gender: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Open">Open</SelectItem>
-                      <SelectItem value="Women">Women</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
               <DialogFooter>
@@ -258,7 +266,7 @@ const TeamsManagement = () => {
               <TableBody>
                 {filteredTeams.map((team) => (
                   <TableRow key={team.id}>
-                    <TableCell className="font-medium">{team.name}</TableCell>
+                    <TableCell className="font-medium">{getTeamDisplayName(team)}</TableCell>
                     <TableCell>{team.clubs?.name || "-"}</TableCell>
                     <TableCell>{team.age_group || "-"}</TableCell>
                     <TableCell>{team.division || "-"}</TableCell>

@@ -13,7 +13,7 @@ import {
   CalendarDays,
   List,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getTeamDisplayName } from "@/lib/utils";
 import { useTeamContext } from "@/contexts/TeamContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -59,7 +59,7 @@ const Games = () => {
   const upcomingGames = games.filter((g) => new Date(g.game_date) >= now);
   const pastGames = games.filter((g) => new Date(g.game_date) < now);
 
-  const teamName = selectedTeam?.name || "Team";
+  const teamName = selectedTeam ? getTeamDisplayName(selectedTeam) : "Team";
   const clubName = selectedClub?.name || "";
 
   return (

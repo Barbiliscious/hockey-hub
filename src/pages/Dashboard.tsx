@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { useTeamContext } from "@/contexts/TeamContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { getTeamDisplayName } from "@/lib/utils";
 
 type AvailabilityStatus = "AVAILABLE" | "UNAVAILABLE" | "UNSURE" | "PENDING";
 
@@ -147,7 +148,7 @@ const Dashboard = () => {
 
   const calendarDays = generateCalendarDays();
   const monthYearLabel = calendarMonth.toLocaleDateString("en-AU", { month: "long", year: "numeric" });
-  const teamName = selectedTeam?.name || "Team";
+  const teamName = selectedTeam ? getTeamDisplayName(selectedTeam) : "Team";
 
   return (
     <div className="space-y-4 animate-fade-in">

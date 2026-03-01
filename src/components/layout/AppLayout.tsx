@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { cn, getTeamDisplayName } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -238,7 +238,7 @@ const AppLayout = () => {
                 <SelectContent className="bg-background border-border">
                   {filteredTeams.map((team) => (
                     <SelectItem key={team.id} value={team.id}>
-                      {team.name}
+                      {getTeamDisplayName(team)}
                     </SelectItem>
                   ))}
                 </SelectContent>
