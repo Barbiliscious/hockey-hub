@@ -492,24 +492,55 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          association_id: string | null
+          club_id: string | null
           created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
+          team_id: string | null
           user_id: string
         }
         Insert: {
+          association_id?: string | null
+          club_id?: string | null
           created_at?: string
           id?: string
           role: Database["public"]["Enums"]["app_role"]
+          team_id?: string | null
           user_id: string
         }
         Update: {
+          association_id?: string | null
+          club_id?: string | null
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          team_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_association_id_fkey"
+            columns: ["association_id"]
+            isOneToOne: false
+            referencedRelation: "associations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

@@ -35,7 +35,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Pencil, Trash2, Building2, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRole } from "@/hooks/useUserRole";
+import { useAdminScope } from "@/hooks/useAdminScope";
 import type { Database } from "@/integrations/supabase/types";
 
 type Association = Database["public"]["Tables"]["associations"]["Row"];
@@ -43,7 +43,7 @@ type Association = Database["public"]["Tables"]["associations"]["Row"];
 const AssociationsManagement = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { loading: roleLoading, isAdmin } = useUserRole();
+  const { loading: scopeLoading, isSuperAdmin, isAnyAdmin, scopedAssociationIds, canManageAssociation } = useAdminScope();
   
   const [associations, setAssociations] = useState<Association[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,32 +54,47 @@ const AssociationsManagement = () => {
   const [formData, setFormData] = useState({ name: "", abbreviation: "", logo_url: "" });
   const [saving, setSaving] = useState(false);
 
+  // Only SUPER_ADMIN and ASSOCIATION_ADMIN should see this page
+  const hasAccess = isSuperAdmin || scopedAssociationIds.length > 0;
+
   useEffect(() => {
-    if (!roleLoading && !isAdmin()) {
-      navigate("/dashboard");
+    if (!scopeLoading && !hasAccess) {
+      navigate("/admin");
     }
-  }, [roleLoading, isAdmin, navigate]);
+  }, [scopeLoading, hasAccess, navigate]);
 
   const fetchAssociations = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("associations")
-      .select("*")
-      .order("name");
-
-    if (error) {
-      toast({ title: "Error", description: "Failed to load associations", variant: "destructive" });
+    if (isSuperAdmin) {
+      const { data, error } = await supabase
+        .from("associations")
+        .select("*")
+        .order("name");
+      if (error) {
+        toast({ title: "Error", description: "Failed to load associations", variant: "destructive" });
+      } else {
+        setAssociations(data || []);
+      }
     } else {
-      setAssociations(data || []);
+      const { data, error } = await supabase
+        .from("associations")
+        .select("*")
+        .in("id", scopedAssociationIds)
+        .order("name");
+      if (error) {
+        toast({ title: "Error", description: "Failed to load associations", variant: "destructive" });
+      } else {
+        setAssociations(data || []);
+      }
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    if (isAdmin()) {
+    if (!scopeLoading && hasAccess) {
       fetchAssociations();
     }
-  }, [isAdmin]);
+  }, [scopeLoading, hasAccess]);
 
   const handleOpenDialog = (association?: Association) => {
     if (association) {
@@ -161,7 +176,7 @@ const AssociationsManagement = () => {
     setDeletingAssociation(null);
   };
 
-  if (roleLoading) {
+  if (scopeLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-64" />
@@ -169,6 +184,10 @@ const AssociationsManagement = () => {
       </div>
     );
   }
+
+  const canAdd = isSuperAdmin;
+  const canEdit = (id: string) => canManageAssociation(id);
+  const canDelete = isSuperAdmin;
 
   return (
     <div className="space-y-6">
@@ -181,57 +200,59 @@ const AssociationsManagement = () => {
           <h1 className="text-3xl font-bold tracking-tight">Associations</h1>
           <p className="text-muted-foreground">Manage sports associations</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Association
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingAssociation ? "Edit Association" : "Add Association"}</DialogTitle>
-              <DialogDescription>
-                {editingAssociation ? "Update the association details" : "Create a new association"}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g., Hockey Victoria"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="abbreviation">Abbreviation</Label>
-                <Input
-                  id="abbreviation"
-                  value={formData.abbreviation}
-                  onChange={(e) => setFormData({ ...formData, abbreviation: e.target.value })}
-                  placeholder="e.g., HV"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="logo_url">Logo URL</Label>
-                <Input
-                  id="logo_url"
-                  value={formData.logo_url}
-                  onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
-                  placeholder="https://..."
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? "Saving..." : editingAssociation ? "Update" : "Create"}
+        {canAdd && (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => handleOpenDialog()}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Association
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingAssociation ? "Edit Association" : "Add Association"}</DialogTitle>
+                <DialogDescription>
+                  {editingAssociation ? "Update the association details" : "Create a new association"}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="e.g., Hockey Victoria"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="abbreviation">Abbreviation</Label>
+                  <Input
+                    id="abbreviation"
+                    value={formData.abbreviation}
+                    onChange={(e) => setFormData({ ...formData, abbreviation: e.target.value })}
+                    placeholder="e.g., HV"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="logo_url">Logo URL</Label>
+                  <Input
+                    id="logo_url"
+                    value={formData.logo_url}
+                    onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+                    placeholder="https://..."
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? "Saving..." : editingAssociation ? "Update" : "Create"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* Table */}
@@ -277,19 +298,23 @@ const AssociationsManagement = () => {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(association)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setDeletingAssociation(association);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      {canEdit(association.id) && (
+                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(association)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setDeletingAssociation(association);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

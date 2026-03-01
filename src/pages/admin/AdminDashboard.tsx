@@ -4,56 +4,92 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link, useNavigate } from "react-router-dom";
-import { Building2, Users, Shield, Trophy, ArrowRight, Crown } from "lucide-react";
+import { Building2, Users, Shield, Trophy, ArrowRight, Crown, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRole, getRoleDisplayName, getRoleBadgeColor } from "@/hooks/useUserRole";
+import { useAdminScope } from "@/hooks/useAdminScope";
+import { getRoleDisplayName, getRoleBadgeColor } from "@/hooks/useUserRole";
 
 interface Stats {
   associations: number;
   clubs: number;
   teams: number;
   users: number;
+  pendingMemberships: number;
 }
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { highestRole, loading: roleLoading, isSuperAdmin, isAdmin } = useUserRole();
-  const [stats, setStats] = useState<Stats>({ associations: 0, clubs: 0, teams: 0, users: 0 });
+  const { loading: scopeLoading, isSuperAdmin, isAnyAdmin, highestScopedRole, scopedAssociationIds, scopedClubIds, scopedTeamIds } = useAdminScope();
+  const [stats, setStats] = useState<Stats>({ associations: 0, clubs: 0, teams: 0, users: 0, pendingMemberships: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Redirect if not admin
-    if (!roleLoading && !isAdmin()) {
+    if (!scopeLoading && !isAnyAdmin) {
       navigate("/dashboard");
     }
-  }, [roleLoading, isAdmin, navigate]);
+  }, [scopeLoading, isAnyAdmin, navigate]);
 
   useEffect(() => {
     const fetchStats = async () => {
+      if (!isAnyAdmin) return;
       setLoading(true);
 
-      const [associationsRes, clubsRes, teamsRes, usersRes] = await Promise.all([
-        supabase.from("associations").select("id", { count: "exact", head: true }),
-        supabase.from("clubs").select("id", { count: "exact", head: true }),
-        supabase.from("teams").select("id", { count: "exact", head: true }),
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-      ]);
+      if (isSuperAdmin) {
+        const [assocRes, clubsRes, teamsRes, usersRes, pendingRes] = await Promise.all([
+          supabase.from("associations").select("id", { count: "exact", head: true }),
+          supabase.from("clubs").select("id", { count: "exact", head: true }),
+          supabase.from("teams").select("id", { count: "exact", head: true }),
+          supabase.from("profiles").select("id", { count: "exact", head: true }),
+          supabase.from("team_memberships").select("id", { count: "exact", head: true }).eq("status", "PENDING"),
+        ]);
+        setStats({
+          associations: assocRes.count || 0,
+          clubs: clubsRes.count || 0,
+          teams: teamsRes.count || 0,
+          users: usersRes.count || 0,
+          pendingMemberships: pendingRes.count || 0,
+        });
+      } else {
+        // Scoped counts
+        let assocCount = 0, clubsCount = 0, teamsCount = 0, usersCount = 0, pendingCount = 0;
 
-      setStats({
-        associations: associationsRes.count || 0,
-        clubs: clubsRes.count || 0,
-        teams: teamsRes.count || 0,
-        users: usersRes.count || 0,
-      });
+        if (scopedAssociationIds.length > 0) {
+          const { count } = await supabase.from("associations").select("id", { count: "exact", head: true }).in("id", scopedAssociationIds);
+          assocCount = count || 0;
+        }
+        if (scopedClubIds.length > 0) {
+          const { count } = await supabase.from("clubs").select("id", { count: "exact", head: true }).in("id", scopedClubIds);
+          clubsCount = count || 0;
+        }
+        if (scopedTeamIds.length > 0) {
+          const [teamsRes, usersRes, pendingRes] = await Promise.all([
+            supabase.from("teams").select("id", { count: "exact", head: true }).in("id", scopedTeamIds),
+            supabase.from("team_memberships").select("user_id", { count: "exact", head: true }).in("team_id", scopedTeamIds),
+            supabase.from("team_memberships").select("id", { count: "exact", head: true }).in("team_id", scopedTeamIds).eq("status", "PENDING"),
+          ]);
+          teamsCount = teamsRes.count || 0;
+          usersCount = usersRes.count || 0;
+          pendingCount = pendingRes.count || 0;
+        }
+
+        setStats({
+          associations: assocCount,
+          clubs: clubsCount,
+          teams: teamsCount,
+          users: usersCount,
+          pendingMemberships: pendingCount,
+        });
+      }
+
       setLoading(false);
     };
 
-    if (isAdmin()) {
+    if (!scopeLoading && isAnyAdmin) {
       fetchStats();
     }
-  }, [isAdmin]);
+  }, [scopeLoading, isAnyAdmin, isSuperAdmin, scopedAssociationIds, scopedClubIds, scopedTeamIds]);
 
-  if (roleLoading) {
+  if (scopeLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-64" />
@@ -66,23 +102,27 @@ const AdminDashboard = () => {
     );
   }
 
+  // Determine which cards to show based on role hierarchy
+  const showAssociations = isSuperAdmin || scopedAssociationIds.length > 0;
+  const showClubs = isSuperAdmin || scopedAssociationIds.length > 0 || scopedClubIds.length > 0;
+
   const statCards = [
-    {
+    ...(showAssociations ? [{
       title: "Associations",
       value: stats.associations,
       icon: Building2,
       href: "/admin/associations",
       description: "Manage associations",
       color: "text-blue-600",
-    },
-    {
+    }] : []),
+    ...(showClubs ? [{
       title: "Clubs",
       value: stats.clubs,
       icon: Shield,
       href: "/admin/clubs",
       description: "Manage clubs",
       color: "text-green-600",
-    },
+    }] : []),
     {
       title: "Teams",
       value: stats.teams,
@@ -111,13 +151,31 @@ const AdminDashboard = () => {
             Manage your organization's structure and users
           </p>
         </div>
-        {highestRole && (
-          <Badge className={getRoleBadgeColor(highestRole)}>
+        {highestScopedRole && (
+          <Badge className={getRoleBadgeColor(highestScopedRole)}>
             <Crown className="mr-1 h-3 w-3" />
-            {getRoleDisplayName(highestRole)}
+            {getRoleDisplayName(highestScopedRole)}
           </Badge>
         )}
       </div>
+
+      {/* Pending Memberships Alert */}
+      {stats.pendingMemberships > 0 && (
+        <Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30">
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-3">
+              <Clock className="h-5 w-5 text-orange-600" />
+              <div>
+                <p className="font-medium text-foreground">{stats.pendingMemberships} pending membership(s)</p>
+                <p className="text-sm text-muted-foreground">Users waiting for approval</p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin/users">Review</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -150,27 +208,29 @@ const AdminDashboard = () => {
       <Card>
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>
-            Common administrative tasks
-          </CardDescription>
+          <CardDescription>Common administrative tasks</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Button variant="outline" asChild className="h-auto py-4 flex-col">
-            <Link to="/admin/associations">
-              <Building2 className="mb-2 h-6 w-6" />
-              <span>Add Association</span>
-            </Link>
-          </Button>
-          <Button variant="outline" asChild className="h-auto py-4 flex-col">
-            <Link to="/admin/clubs">
-              <Shield className="mb-2 h-6 w-6" />
-              <span>Add Club</span>
-            </Link>
-          </Button>
+          {showAssociations && (
+            <Button variant="outline" asChild className="h-auto py-4 flex-col">
+              <Link to="/admin/associations">
+                <Building2 className="mb-2 h-6 w-6" />
+                <span>Associations</span>
+              </Link>
+            </Button>
+          )}
+          {showClubs && (
+            <Button variant="outline" asChild className="h-auto py-4 flex-col">
+              <Link to="/admin/clubs">
+                <Shield className="mb-2 h-6 w-6" />
+                <span>Clubs</span>
+              </Link>
+            </Button>
+          )}
           <Button variant="outline" asChild className="h-auto py-4 flex-col">
             <Link to="/admin/teams">
               <Trophy className="mb-2 h-6 w-6" />
-              <span>Add Team</span>
+              <span>Teams</span>
             </Link>
           </Button>
           <Button variant="outline" asChild className="h-auto py-4 flex-col">

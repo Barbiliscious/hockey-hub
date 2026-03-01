@@ -1,39 +1,46 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
-import { Users, ArrowLeft, Shield, Search } from "lucide-react";
+import { Users, ArrowLeft, Shield, Search, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRole, getRoleDisplayName, getRoleBadgeColor } from "@/hooks/useUserRole";
+import { useAdminScope } from "@/hooks/useAdminScope";
+import { getRoleDisplayName, getRoleBadgeColor } from "@/hooks/useUserRole";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
+interface Membership {
+  id: string;
+  team_id: string;
+  status: string;
+  membership_type: string;
+  team_name?: string;
+}
+
 interface UserWithRoles extends Profile {
   roles: AppRole[];
+  memberships: Membership[];
 }
 
 const ALL_ROLES: AppRole[] = ["PLAYER", "COACH", "TEAM_MANAGER", "CLUB_ADMIN", "ASSOCIATION_ADMIN", "SUPER_ADMIN"];
@@ -41,52 +48,82 @@ const ALL_ROLES: AppRole[] = ["PLAYER", "COACH", "TEAM_MANAGER", "CLUB_ADMIN", "
 const UsersManagement = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { loading: roleLoading, isAdmin, isSuperAdmin } = useUserRole();
-  
+  const { loading: scopeLoading, isSuperAdmin, isAnyAdmin, scopedTeamIds, scopedClubIds, scopedAssociationIds } = useAdminScope();
+
   const [users, setUsers] = useState<UserWithRoles[]>([]);
+  const [teams, setTeams] = useState<{ id: string; name: string; club_id: string }[]>([]);
+  const [clubs, setClubs] = useState<{ id: string; name: string; association_id: string }[]>([]);
+  const [associations, setAssociations] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [teamFilter, setTeamFilter] = useState<string>("all");
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithRoles | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<AppRole[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!roleLoading && !isAdmin()) {
+    if (!scopeLoading && !isAnyAdmin) {
       navigate("/dashboard");
     }
-  }, [roleLoading, isAdmin, navigate]);
+  }, [scopeLoading, isAnyAdmin, navigate]);
 
   const fetchUsers = async () => {
     setLoading(true);
 
-    // Fetch all profiles
-    const { data: profiles, error: profilesError } = await supabase
-      .from("profiles")
-      .select("*")
-      .order("first_name");
+    // Fetch reference data
+    const [teamsRes, clubsRes, assocRes] = await Promise.all([
+      supabase.from("teams").select("id, name, club_id"),
+      supabase.from("clubs").select("id, name, association_id"),
+      supabase.from("associations").select("id, name"),
+    ]);
+    setTeams(teamsRes.data || []);
+    setClubs(clubsRes.data || []);
+    setAssociations(assocRes.data || []);
 
-    if (profilesError) {
-      toast({ title: "Error", description: "Failed to load users", variant: "destructive" });
-      setLoading(false);
-      return;
+    const teamsList = teamsRes.data || [];
+    const teamsToShow = isSuperAdmin ? teamsList.map((t) => t.id) : scopedTeamIds;
+
+    // Fetch memberships for scoped teams
+    let membershipsData: any[] = [];
+    if (isSuperAdmin) {
+      const { data } = await supabase.from("team_memberships").select("id, user_id, team_id, status, membership_type");
+      membershipsData = data || [];
+    } else if (teamsToShow.length > 0) {
+      const { data } = await supabase.from("team_memberships").select("id, user_id, team_id, status, membership_type").in("team_id", teamsToShow);
+      membershipsData = data || [];
     }
 
-    // Fetch all roles
-    const { data: userRoles, error: rolesError } = await supabase
-      .from("user_roles")
-      .select("user_id, role");
+    // Get unique user IDs from memberships
+    const memberUserIds = [...new Set(membershipsData.map((m) => m.user_id))];
 
-    if (rolesError) {
-      console.error("Failed to load roles:", rolesError);
+    // Fetch profiles
+    let profiles: Profile[] = [];
+    if (isSuperAdmin) {
+      const { data } = await supabase.from("profiles").select("*").order("first_name");
+      profiles = data || [];
+    } else if (memberUserIds.length > 0) {
+      const { data } = await supabase.from("profiles").select("*").in("id", memberUserIds).order("first_name");
+      profiles = data || [];
     }
 
-    // Combine profiles with their roles
-    const usersWithRoles: UserWithRoles[] = (profiles || []).map((profile) => ({
+    // Fetch roles
+    const { data: userRoles } = await supabase.from("user_roles").select("user_id, role");
+
+    // Build user list
+    const usersWithRoles: UserWithRoles[] = profiles.map((profile) => ({
       ...profile,
-      roles: (userRoles || [])
-        .filter((r) => r.user_id === profile.id)
-        .map((r) => r.role),
+      roles: (userRoles || []).filter((r) => r.user_id === profile.id).map((r) => r.role),
+      memberships: membershipsData
+        .filter((m) => m.user_id === profile.id)
+        .map((m) => ({
+          id: m.id,
+          team_id: m.team_id,
+          status: m.status,
+          membership_type: m.membership_type,
+          team_name: teamsList.find((t) => t.id === m.team_id)?.name,
+        })),
     }));
 
     setUsers(usersWithRoles);
@@ -94,16 +131,52 @@ const UsersManagement = () => {
   };
 
   useEffect(() => {
-    if (isAdmin()) {
+    if (!scopeLoading && isAnyAdmin) {
       fetchUsers();
     }
-  }, [isAdmin]);
+  }, [scopeLoading, isAnyAdmin, isSuperAdmin, scopedTeamIds]);
 
-  // Filter users by search
+  // Filter users
   const filteredUsers = users.filter((user) => {
     const fullName = `${user.first_name || ""} ${user.last_name || ""}`.toLowerCase();
-    return fullName.includes(searchQuery.toLowerCase());
+    if (!fullName.includes(searchQuery.toLowerCase())) return false;
+    if (statusFilter !== "all") {
+      if (statusFilter === "unassigned") {
+        if (user.memberships.length > 0) return false;
+      } else {
+        if (!user.memberships.some((m) => m.status === statusFilter)) return false;
+      }
+    }
+    if (teamFilter !== "all") {
+      if (!user.memberships.some((m) => m.team_id === teamFilter)) return false;
+    }
+    return true;
   });
+
+  // Available teams for filter dropdown (scoped)
+  const availableTeams = isSuperAdmin
+    ? teams
+    : teams.filter((t) => scopedTeamIds.includes(t.id));
+
+  const handleApproveMembership = async (membershipId: string) => {
+    const { error } = await supabase.from("team_memberships").update({ status: "APPROVED" }).eq("id", membershipId);
+    if (error) {
+      toast({ title: "Error", description: "Failed to approve", variant: "destructive" });
+    } else {
+      toast({ title: "Approved", description: "Membership approved" });
+      fetchUsers();
+    }
+  };
+
+  const handleDeclineMembership = async (membershipId: string) => {
+    const { error } = await supabase.from("team_memberships").update({ status: "DECLINED" }).eq("id", membershipId);
+    if (error) {
+      toast({ title: "Error", description: "Failed to decline", variant: "destructive" });
+    } else {
+      toast({ title: "Declined", description: "Membership declined" });
+      fetchUsers();
+    }
+  };
 
   const handleOpenRoleDialog = (user: UserWithRoles) => {
     setSelectedUser(user);
@@ -117,41 +190,55 @@ const UsersManagement = () => {
     );
   };
 
+  // Determine which roles the current admin can assign
+  const canAssignRole = (role: AppRole): boolean => {
+    if (isSuperAdmin) return true;
+    if (role === "SUPER_ADMIN") return false;
+    if (scopedAssociationIds.length > 0) {
+      // Association admin can assign up to CLUB_ADMIN
+      return ["PLAYER", "COACH", "TEAM_MANAGER", "CLUB_ADMIN"].includes(role);
+    }
+    if (scopedClubIds.length > 0) {
+      // Club admin can assign up to TEAM_MANAGER
+      return ["PLAYER", "COACH", "TEAM_MANAGER"].includes(role);
+    }
+    // Team manager/coach - no role assignment
+    return false;
+  };
+
   const handleSaveRoles = async () => {
     if (!selectedUser) return;
-
     setSaving(true);
 
-    // Get current roles
     const currentRoles = selectedUser.roles;
-
-    // Determine roles to add and remove
     const rolesToAdd = selectedRoles.filter((r) => !currentRoles.includes(r));
     const rolesToRemove = currentRoles.filter((r) => !selectedRoles.includes(r));
 
-    // Remove roles
     for (const role of rolesToRemove) {
-      const { error } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", selectedUser.id)
-        .eq("role", role);
-
+      const { error } = await supabase.from("user_roles").delete().eq("user_id", selectedUser.id).eq("role", role);
       if (error) {
-        toast({ title: "Error", description: `Failed to remove ${role} role`, variant: "destructive" });
+        toast({ title: "Error", description: `Failed to remove ${role}`, variant: "destructive" });
         setSaving(false);
         return;
       }
     }
 
-    // Add roles
     for (const role of rolesToAdd) {
-      const { error } = await supabase
-        .from("user_roles")
-        .insert({ user_id: selectedUser.id, role });
+      // Build insert with scope
+      const insertData: any = { user_id: selectedUser.id, role };
+      if (role === "ASSOCIATION_ADMIN" && scopedAssociationIds.length > 0) {
+        insertData.association_id = scopedAssociationIds[0];
+      }
+      if (role === "CLUB_ADMIN" && scopedClubIds.length > 0) {
+        insertData.club_id = scopedClubIds[0];
+      }
+      if ((role === "TEAM_MANAGER" || role === "COACH") && scopedTeamIds.length > 0) {
+        insertData.team_id = scopedTeamIds[0];
+      }
 
+      const { error } = await supabase.from("user_roles").insert(insertData);
       if (error) {
-        toast({ title: "Error", description: `Failed to add ${role} role`, variant: "destructive" });
+        toast({ title: "Error", description: `Failed to add ${role}`, variant: "destructive" });
         setSaving(false);
         return;
       }
@@ -163,7 +250,7 @@ const UsersManagement = () => {
     setSaving(false);
   };
 
-  if (roleLoading) {
+  if (scopeLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-64" />
@@ -181,19 +268,44 @@ const UsersManagement = () => {
         </Button>
         <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight">Users</h1>
-          <p className="text-muted-foreground">Manage user profiles and roles</p>
+          <p className="text-muted-foreground">Manage user profiles, roles, and memberships</p>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by name..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9"
-        />
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="PENDING">Pending</SelectItem>
+            <SelectItem value="APPROVED">Approved</SelectItem>
+            <SelectItem value="DECLINED">Declined</SelectItem>
+            {isSuperAdmin && <SelectItem value="unassigned">Unassigned</SelectItem>}
+          </SelectContent>
+        </Select>
+        <Select value={teamFilter} onValueChange={setTeamFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Team" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Teams</SelectItem>
+            {availableTeams.map((t) => (
+              <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Table */}
@@ -201,28 +313,24 @@ const UsersManagement = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            All Users
+            Users
           </CardTitle>
           <CardDescription>{filteredUsers.length} user(s)</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
           ) : filteredUsers.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No users found.
-            </div>
+            <div className="text-center py-8 text-muted-foreground">No users found.</div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Suburb</TableHead>
+                  <TableHead>Team(s)</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Roles</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -235,8 +343,53 @@ const UsersManagement = () => {
                         ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
                         : "(No name)"}
                     </TableCell>
-                    <TableCell>{user.phone || "-"}</TableCell>
-                    <TableCell>{user.suburb || "-"}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {user.memberships.length === 0 ? (
+                          <span className="text-muted-foreground text-sm">Unassigned</span>
+                        ) : (
+                          user.memberships.map((m) => (
+                            <Badge key={m.id} variant="outline" className="text-xs">
+                              {m.team_name || "Unknown"}
+                            </Badge>
+                          ))
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {user.memberships.length === 0 ? (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        ) : (
+                          user.memberships.map((m) => (
+                            <div key={m.id} className="flex items-center gap-1">
+                              <Badge
+                                variant="secondary"
+                                className={
+                                  m.status === "PENDING"
+                                    ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300"
+                                    : m.status === "APPROVED"
+                                    ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                                    : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+                                }
+                              >
+                                {m.status}
+                              </Badge>
+                              {m.status === "PENDING" && (
+                                <div className="flex gap-0.5">
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleApproveMembership(m.id)}>
+                                    <Check className="h-3 w-3 text-green-600" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDeclineMembership(m.id)}>
+                                    <X className="h-3 w-3 text-destructive" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {user.roles.length === 0 ? (
@@ -251,13 +404,9 @@ const UsersManagement = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenRoleDialog(user)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => handleOpenRoleDialog(user)}>
                         <Shield className="mr-2 h-4 w-4" />
-                        Manage Roles
+                        Roles
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -279,9 +428,7 @@ const UsersManagement = () => {
           </DialogHeader>
           <div className="space-y-4 py-4">
             {ALL_ROLES.map((role) => {
-              // Only super admins can assign super admin role
-              const disabled = role === "SUPER_ADMIN" && !isSuperAdmin();
-              
+              const disabled = !canAssignRole(role);
               return (
                 <div key={role} className="flex items-center space-x-3">
                   <Checkbox
@@ -290,23 +437,18 @@ const UsersManagement = () => {
                     onCheckedChange={() => handleToggleRole(role)}
                     disabled={disabled}
                   />
-                  <Label
-                    htmlFor={role}
-                    className={`flex items-center gap-2 ${disabled ? "text-muted-foreground" : ""}`}
-                  >
+                  <Label htmlFor={role} className={`flex items-center gap-2 ${disabled ? "text-muted-foreground" : ""}`}>
                     <Badge className={getRoleBadgeColor(role)} variant="secondary">
                       {getRoleDisplayName(role)}
                     </Badge>
-                    {disabled && <span className="text-xs">(Super Admin only)</span>}
+                    {disabled && <span className="text-xs">(insufficient permissions)</span>}
                   </Label>
                 </div>
               );
             })}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRoleDialogOpen(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setRoleDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSaveRoles} disabled={saving}>
               {saving ? "Saving..." : "Save Roles"}
             </Button>
