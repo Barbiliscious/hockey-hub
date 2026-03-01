@@ -14,7 +14,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
+import { cn, getTeamDisplayName } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTeamContext } from "@/contexts/TeamContext";
@@ -162,7 +162,7 @@ const GameDetail = () => {
     );
   }
 
-  const teamName = selectedTeam?.name || "Team";
+  const teamName = selectedTeam ? getTeamDisplayName(selectedTeam) : "Team";
   const homeTeam = game.is_home ? teamName : game.opponent_name;
   const awayTeam = game.is_home ? game.opponent_name : teamName;
   const gameDate = new Date(game.game_date);

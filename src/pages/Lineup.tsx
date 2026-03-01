@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, Calendar, Clock, MapPin } from "lucide-react";
 import { LineupView } from "@/components/lineup/LineupView";
 import { useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
+import { cn, getTeamDisplayName } from "@/lib/utils";
 import { useTeamContext } from "@/contexts/TeamContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -58,7 +58,7 @@ const Lineup = () => {
     );
   }
 
-  const teamName = selectedTeam?.name || "Team";
+  const teamName = selectedTeam ? getTeamDisplayName(selectedTeam) : "Team";
   const gameDate = new Date(game.game_date);
 
   return (
