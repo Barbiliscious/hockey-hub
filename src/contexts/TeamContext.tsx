@@ -77,17 +77,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       setClubs(allClubs);
       setTeams(allTeams);
 
-      // Auto-select first association/club/team
-      if (assocs.length > 0 && !selectedAssociationId) {
-        const firstAssoc = assocs[0];
-        setSelectedAssociationId(firstAssoc.id);
-        const firstClub = allClubs.find(c => c.association_id === firstAssoc.id);
-        if (firstClub) {
-          setSelectedClubId(firstClub.id);
-          const firstTeam = allTeams.find(t => t.club_id === firstClub.id);
-          if (firstTeam) setSelectedTeamId(firstTeam.id);
-        }
-      }
+      // No auto-select - selectors start empty, mode determines what's shown
 
       setLoading(false);
     };

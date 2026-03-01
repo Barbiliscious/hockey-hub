@@ -7,12 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, ChevronLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAppMode } from "@/contexts/AppModeContext";
 import fieldBg from "@/assets/Field_1.png";
 
 const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { signIn, signInWithGoogle, user, loading } = useAuth();
+  const { modeLanding, loading: modeLoading } = useAppMode();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -22,10 +24,10 @@ const Login = () => {
 
   // Redirect if already logged in
   useEffect(() => {
-    if (!loading && user) {
-      navigate("/dashboard");
+    if (!loading && !modeLoading && user) {
+      navigate(modeLanding);
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, modeLoading, navigate, modeLanding]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +59,7 @@ const Login = () => {
       title: "Welcome back!",
       description: "You've been signed in successfully.",
     });
-    navigate("/dashboard");
+    // Navigation handled by useEffect redirect
   };
 
   const handleGoogleSignIn = async () => {
