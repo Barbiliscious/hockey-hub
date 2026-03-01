@@ -37,6 +37,7 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 // Context
 import { TestRoleProvider } from "./contexts/TestRoleContext";
 import { TeamProvider } from "./contexts/TeamContext";
+import { AppModeProvider } from "./contexts/AppModeContext";
 
 const queryClient = new QueryClient();
 
@@ -45,44 +46,46 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <TestRoleProvider>
-          <TeamProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<Landing />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/pending" element={<Pending />} />
+          <AppModeProvider>
+            <TeamProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/pending" element={<Pending />} />
 
-                {/* Protected Routes with App Layout */}
-                <Route element={<ProtectedRoute />}>
-                  <Route element={<AppLayout />}>
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/games" element={<Games />} />
-                    <Route path="/games/:id" element={<GameDetail />} />
-                    <Route path="/games/:id/lineup" element={<Lineup />} />
-                    <Route path="/roster" element={<Roster />} />
-                    <Route path="/chat" element={<Chat />} />
-                    <Route path="/profile" element={<Profile />} />
-                    
-                    {/* Admin Routes */}
-                    <Route path="/admin" element={<AdminDashboard />} />
-                    <Route path="/admin/associations" element={<AssociationsManagement />} />
-                    <Route path="/admin/clubs" element={<ClubsManagement />} />
-                    <Route path="/admin/teams" element={<TeamsManagement />} />
-                    <Route path="/admin/users" element={<UsersManagement />} />
+                  {/* Protected Routes with App Layout */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route element={<AppLayout />}>
+                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/games" element={<Games />} />
+                      <Route path="/games/:id" element={<GameDetail />} />
+                      <Route path="/games/:id/lineup" element={<Lineup />} />
+                      <Route path="/roster" element={<Roster />} />
+                      <Route path="/chat" element={<Chat />} />
+                      <Route path="/profile" element={<Profile />} />
+                      
+                      {/* Admin Routes */}
+                      <Route path="/admin" element={<AdminDashboard />} />
+                      <Route path="/admin/associations" element={<AssociationsManagement />} />
+                      <Route path="/admin/clubs" element={<ClubsManagement />} />
+                      <Route path="/admin/teams" element={<TeamsManagement />} />
+                      <Route path="/admin/users" element={<UsersManagement />} />
+                    </Route>
                   </Route>
-                </Route>
 
-                {/* Catch-all */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TeamProvider>
+                  {/* Catch-all */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </TeamProvider>
+          </AppModeProvider>
         </TestRoleProvider>
       </AuthProvider>
     </TooltipProvider>

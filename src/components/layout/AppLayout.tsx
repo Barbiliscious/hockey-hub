@@ -31,61 +31,73 @@ import {
   Building2,
   Shield,
   Globe,
-  ShieldCheck,
+  ChevronDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useTestRole } from "@/contexts/TestRoleContext";
 import { useTeamContext } from "@/contexts/TeamContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAdminScope } from "@/hooks/useAdminScope";
+import { useAppMode, MODE_LABELS, type AppMode } from "@/contexts/AppModeContext";
 import { supabase } from "@/integrations/supabase/client";
-import type { Role } from "@/lib/mockData";
 
-// Base nav items for all users
-const baseNavItems = [
-  { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { path: "/games", label: "Fixtures", icon: Calendar },
-  { path: "/roster", label: "Statistics", icon: BarChart3 },
-  { path: "/chat", label: "Chat", icon: MessageCircle },
-];
+// Nav items per mode
+const NAV_SETS: Record<AppMode, { path: string; label: string; icon: typeof LayoutDashboard }[]> = {
+  super_admin: [
+    { path: "/admin/associations", label: "Associations", icon: Globe },
+    { path: "/admin/clubs", label: "Clubs", icon: Building2 },
+    { path: "/admin/teams", label: "Teams", icon: Shield },
+    { path: "/admin/users", label: "Users", icon: UserCog },
+  ],
+  association: [
+    { path: "/admin/clubs", label: "Clubs", icon: Building2 },
+    { path: "/admin/teams", label: "Teams", icon: Shield },
+    { path: "/admin/users", label: "Users", icon: UserCog },
+  ],
+  club: [
+    { path: "/admin/teams", label: "Teams", icon: Shield },
+    { path: "/admin/users", label: "Users", icon: UserCog },
+    { path: "/admin", label: "Club Settings", icon: Settings },
+  ],
+  team: [
+    { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { path: "/games", label: "Fixtures", icon: Calendar },
+    { path: "/roster", label: "Roster", icon: Users },
+    { path: "/chat", label: "Chat", icon: MessageCircle },
+  ],
+  player: [
+    { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { path: "/games", label: "Fixtures", icon: Calendar },
+    { path: "/roster", label: "Statistics", icon: BarChart3 },
+    { path: "/chat", label: "Chat", icon: MessageCircle },
+  ],
+};
 
-const coachNavItems = [
-  { path: "/lineup", label: "Lineups", icon: ClipboardList },
-  { path: "/team-management", label: "Team", icon: Users },
-];
+// Bottom nav for mobile per mode
+const MOBILE_NAV: Record<AppMode, { path: string; label: string; icon: typeof LayoutDashboard }[]> = {
+  super_admin: NAV_SETS.super_admin.slice(0, 4),
+  association: NAV_SETS.association.slice(0, 4),
+  club: NAV_SETS.club.slice(0, 4),
+  team: [
+    { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { path: "/games", label: "Fixtures", icon: Calendar },
+    { path: "/roster", label: "Roster", icon: Users },
+    { path: "/chat", label: "Chat", icon: MessageCircle },
+  ],
+  player: [
+    { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { path: "/games", label: "Fixtures", icon: Calendar },
+    { path: "/roster", label: "Stats", icon: BarChart3 },
+    { path: "/chat", label: "Chat", icon: MessageCircle },
+  ],
+};
 
-const clubAdminNavItems = [
-  { path: "/club-management", label: "Club", icon: Building2 },
-  { path: "/club-teams", label: "Teams", icon: Users },
-];
-
-const associationAdminNavItems = [
-  { path: "/association", label: "Association", icon: Building2 },
-  { path: "/clubs", label: "Clubs", icon: Shield },
-  { path: "/user-management", label: "Users", icon: UserCog },
-];
-
-const systemAdminNavItems = [
-  { path: "/all-associations", label: "All Associations", icon: Globe },
-  { path: "/settings", label: "System Settings", icon: Settings },
-];
-
-const getNavItems = (role: Role) => {
-  let items = [...baseNavItems];
-  if (["COACH", "CLUB_ADMIN", "ASSOCIATION_ADMIN", "SYSTEM_ADMIN"].includes(role)) {
-    items = [...items, ...coachNavItems];
-  }
-  if (["CLUB_ADMIN", "ASSOCIATION_ADMIN", "SYSTEM_ADMIN"].includes(role)) {
-    items = [...items, ...clubAdminNavItems];
-  }
-  if (["ASSOCIATION_ADMIN", "SYSTEM_ADMIN"].includes(role)) {
-    items = [...items, ...associationAdminNavItems];
-  }
-  if (role === "SYSTEM_ADMIN") {
-    items = [...items, ...systemAdminNavItems];
-  }
-  return items;
+// Profile icon destination per mode
+const PROFILE_DEST: Record<AppMode, string> = {
+  super_admin: "/admin/associations",
+  association: "/admin/associations",
+  club: "/admin",
+  team: "/profile",
+  player: "/profile",
 };
 
 interface Notification {
@@ -100,9 +112,8 @@ interface Notification {
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { testRole } = useTestRole();
   const { user } = useAuth();
-  const { isAnyAdmin } = useAdminScope();
+  const { mode, setMode, availableModes, canSwitchMode, modeLabel } = useAppMode();
   const {
     associations,
     selectedAssociationId,
@@ -118,6 +129,7 @@ const AppLayout = () => {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAssociationPopoverOpen, setIsAssociationPopoverOpen] = useState(false);
+  const [isModeSwitcherOpen, setIsModeSwitcherOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   // Fetch notifications from DB
@@ -140,17 +152,101 @@ const AppLayout = () => {
     setIsAssociationPopoverOpen(false);
   };
 
-  // Build nav items: base + admin link if user has any admin/manager/coach role
-  const navItems = [
-    ...getNavItems(testRole),
-    ...(isAnyAdmin ? [{ path: "/admin", label: "Admin", icon: ShieldCheck }] : []),
-  ];
+  const navItems = NAV_SETS[mode];
+  const mobileNavItems = MOBILE_NAV[mode];
+  const profileDest = PROFILE_DEST[mode];
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const isAdminMode = mode === "super_admin" || mode === "association" || mode === "club";
+
+  // Show selectors based on mode
+  const showAssociationSelector = mode === "super_admin";
+  const showClubSelector = mode === "super_admin" || mode === "association";
+  const showTeamSelector = mode === "super_admin" || mode === "association" || mode === "club" || mode === "team" || mode === "player";
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/");
   };
+
+  const handleModeSwitch = (newMode: AppMode) => {
+    setMode(newMode);
+    setIsModeSwitcherOpen(false);
+    // Navigate to mode's landing page
+    const landing = newMode === "super_admin" || newMode === "association" || newMode === "club" ? "/admin" : "/dashboard";
+    navigate(landing);
+  };
+
+  const renderSidebar = (isMobile: boolean) => (
+    <>
+      <nav className="flex-1 py-2">
+        {navItems.map((item) => {
+          const isActive =
+            location.pathname === item.path ||
+            (item.path === "/games" && location.pathname.startsWith("/games"));
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={isMobile ? () => setIsMobileMenuOpen(false) : undefined}
+            >
+              <div
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 mx-2 my-1 rounded-lg text-sm font-medium transition-all border-l-4",
+                  isActive
+                    ? "bg-secondary text-secondary-foreground border-secondary"
+                    : "text-accent-foreground hover:bg-accent-foreground/10 border-transparent"
+                )}
+              >
+                <Icon className="h-5 w-5" />
+                {item.label}
+              </div>
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="p-4 space-y-2">
+        {/* Mode Switcher */}
+        {canSwitchMode && (
+          <Popover open={isModeSwitcherOpen} onOpenChange={setIsModeSwitcherOpen}>
+            <PopoverTrigger asChild>
+              <button className="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-lg text-sm font-medium text-accent-foreground hover:bg-accent-foreground/10 transition-all border border-border">
+                <span className="truncate">{modeLabel} Mode</span>
+                <ChevronDown className="h-4 w-4 shrink-0" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-52 p-1 bg-background border-border" side="top" align="start">
+              <p className="text-xs font-medium text-muted-foreground px-3 py-2">Switch Mode</p>
+              {availableModes.map((m) => (
+                <button
+                  key={m}
+                  onClick={() => handleModeSwitch(m)}
+                  className={cn(
+                    "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
+                    m === mode
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted text-foreground"
+                  )}
+                >
+                  {MODE_LABELS[m]} Mode
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        )}
+
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-accent-foreground hover:bg-accent-foreground/10 transition-all"
+        >
+          <LogOut className="h-5 w-5" />
+          Logout
+        </button>
+      </div>
+    </>
+  );
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -168,53 +264,67 @@ const AppLayout = () => {
               {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
 
-            {/* Association Logo with Popover */}
-            <Popover open={isAssociationPopoverOpen} onOpenChange={setIsAssociationPopoverOpen}>
-              <PopoverTrigger asChild>
-                <button className="w-10 h-10 rounded-lg overflow-hidden border-2 border-primary-foreground/20 hover:border-primary-foreground/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-foreground/50">
-                  <Avatar className="w-full h-full rounded-none">
-                    <AvatarImage
-                      src={selectedAssociation?.logo_url || undefined}
-                      alt={selectedAssociation?.name}
-                      className="object-cover"
-                    />
-                    <AvatarFallback className="rounded-none bg-accent text-accent-foreground text-xs font-semibold">
-                      {selectedAssociation?.abbreviation || selectedAssociation?.name?.substring(0, 2).toUpperCase() || "HA"}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 p-2 bg-background border-border" align="start">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground px-2 py-1">
-                    Select Association
-                  </p>
-                  {associations.map((assoc) => (
-                    <button
-                      key={assoc.id}
-                      onClick={() => handleAssociationChange(assoc.id)}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-2 py-2 rounded-lg text-left transition-colors",
-                        selectedAssociationId === assoc.id
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-muted text-foreground"
-                      )}
-                    >
-                      <Avatar className="w-8 h-8">
-                        <AvatarImage src={assoc.logo_url || undefined} alt={assoc.name} className="object-cover" />
-                        <AvatarFallback className="text-xs">
-                          {assoc.abbreviation || assoc.name.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm font-medium truncate">{assoc.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+            {/* Association Logo with Popover - only interactive for super_admin */}
+            {showAssociationSelector ? (
+              <Popover open={isAssociationPopoverOpen} onOpenChange={setIsAssociationPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <button className="w-10 h-10 rounded-lg overflow-hidden border-2 border-primary-foreground/20 hover:border-primary-foreground/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-foreground/50">
+                    <Avatar className="w-full h-full rounded-none">
+                      <AvatarImage
+                        src={selectedAssociation?.logo_url || undefined}
+                        alt={selectedAssociation?.name}
+                        className="object-cover"
+                      />
+                      <AvatarFallback className="rounded-none bg-accent text-accent-foreground text-xs font-semibold">
+                        {selectedAssociation?.abbreviation || selectedAssociation?.name?.substring(0, 2).toUpperCase() || "HA"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-2 bg-background border-border" align="start">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground px-2 py-1">Select Association</p>
+                    {associations.map((assoc) => (
+                      <button
+                        key={assoc.id}
+                        onClick={() => handleAssociationChange(assoc.id)}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-2 py-2 rounded-lg text-left transition-colors",
+                          selectedAssociationId === assoc.id
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-muted text-foreground"
+                        )}
+                      >
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={assoc.logo_url || undefined} alt={assoc.name} className="object-cover" />
+                          <AvatarFallback className="text-xs">
+                            {assoc.abbreviation || assoc.name.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium truncate">{assoc.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              // Static association logo for non-super_admin modes
+              <div className="w-10 h-10 rounded-lg overflow-hidden border-2 border-primary-foreground/20">
+                <Avatar className="w-full h-full rounded-none">
+                  <AvatarImage
+                    src={selectedAssociation?.logo_url || undefined}
+                    alt={selectedAssociation?.name}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="rounded-none bg-accent text-accent-foreground text-xs font-semibold">
+                    {selectedAssociation?.abbreviation || selectedAssociation?.name?.substring(0, 2).toUpperCase() || "HA"}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+            )}
 
-            {/* Club Selector */}
-            {filteredClubs.length > 0 && (
+            {/* Club Selector - only for modes that need it */}
+            {showClubSelector && filteredClubs.length > 0 && (
               <Select value={selectedClubId} onValueChange={setSelectedClubId}>
                 <SelectTrigger className="w-[180px] lg:w-[200px] bg-accent text-accent-foreground border-0 font-medium">
                   <SelectValue placeholder="Select Club" />
@@ -230,7 +340,7 @@ const AppLayout = () => {
             )}
 
             {/* Team Selector */}
-            {filteredTeams.length > 0 && (
+            {showTeamSelector && filteredTeams.length > 0 && (
               <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
                 <SelectTrigger className="w-[140px] lg:w-[180px] bg-accent text-accent-foreground border-0 font-medium">
                   <SelectValue placeholder="Select Team" />
@@ -244,16 +354,17 @@ const AppLayout = () => {
                 </SelectContent>
               </Select>
             )}
-          </div>
 
-          {/* Right: Role Badge, Notifications & User */}
-          <div className="flex items-center gap-3">
-            {testRole !== "PLAYER" && (
-              <Badge className="bg-amber-500 text-amber-950 text-xs hidden sm:flex">
-                Testing: {testRole.replace(/_/g, " ")}
+            {/* Mode badge for admin modes */}
+            {isAdminMode && (
+              <Badge className="bg-accent text-accent-foreground text-xs hidden sm:flex ml-2">
+                {modeLabel}
               </Badge>
             )}
+          </div>
 
+          {/* Right: Notifications & User */}
+          <div className="flex items-center gap-3">
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -308,7 +419,7 @@ const AppLayout = () => {
               </PopoverContent>
             </Popover>
             
-            <Link to="/profile">
+            <Link to={profileDest}>
               <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center hover:ring-2 hover:ring-primary-foreground/50 transition-all cursor-pointer">
                 <User className="h-5 w-5 text-accent-foreground" />
               </div>
@@ -320,39 +431,7 @@ const AppLayout = () => {
       <div className="flex flex-1">
         {/* Desktop Sidebar */}
         <aside className="hidden lg:flex flex-col w-56 min-h-[calc(100vh-3.5rem)] bg-accent border-r border-border">
-          <nav className="flex-1 py-2">
-            {navItems.map((item) => {
-              const isActive =
-                location.pathname === item.path ||
-                (item.path === "/games" && location.pathname.startsWith("/games"));
-              const Icon = item.icon;
-              return (
-                <Link key={item.path} to={item.path}>
-                  <div
-                    className={cn(
-                      "flex items-center gap-3 px-4 py-3 mx-2 my-1 rounded-lg text-sm font-medium transition-all border-l-4",
-                      isActive
-                        ? "bg-secondary text-secondary-foreground border-secondary"
-                        : "text-accent-foreground hover:bg-accent-foreground/10 border-transparent"
-                    )}
-                  >
-                    <Icon className="h-5 w-5" />
-                    {item.label}
-                  </div>
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="p-4">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-accent-foreground hover:bg-accent-foreground/10 transition-all"
-            >
-              <LogOut className="h-5 w-5" />
-              Logout
-            </button>
-          </div>
+          {renderSidebar(false)}
         </aside>
 
         {/* Mobile Sidebar Overlay */}
@@ -363,41 +442,7 @@ const AppLayout = () => {
               onClick={() => setIsMobileMenuOpen(false)}
             />
             <aside className="absolute left-0 top-14 bottom-0 w-64 bg-accent animate-slide-in-right flex flex-col">
-              <nav className="flex-1 py-2">
-                {navItems.map((item) => {
-                  const isActive = location.pathname === item.path;
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <div
-                        className={cn(
-                          "flex items-center gap-3 px-4 py-3 mx-2 my-1 rounded-lg text-sm font-medium transition-all border-l-4",
-                          isActive
-                            ? "bg-secondary text-secondary-foreground border-secondary"
-                            : "text-accent-foreground hover:bg-accent-foreground/10 border-transparent"
-                        )}
-                      >
-                        <Icon className="h-5 w-5" />
-                        {item.label}
-                      </div>
-                    </Link>
-                  );
-                })}
-              </nav>
-
-              <div className="p-4 mt-auto">
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-accent-foreground hover:bg-accent-foreground/10 transition-all"
-                >
-                  <LogOut className="h-5 w-5" />
-                  Logout
-                </button>
-              </div>
+              {renderSidebar(true)}
             </aside>
           </div>
         )}
@@ -411,7 +456,7 @@ const AppLayout = () => {
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border lg:hidden">
         <div className="flex justify-around py-2">
-          {baseNavItems.map((item) => {
+          {mobileNavItems.map((item) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
             return (
