@@ -210,31 +210,34 @@ const AppLayout = () => {
       <div className="p-4 space-y-2">
         {/* Mode Switcher */}
         {canSwitchMode && (
-          <Popover open={isModeSwitcherOpen} onOpenChange={setIsModeSwitcherOpen}>
-            <PopoverTrigger asChild>
-              <button className="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-lg text-sm font-medium text-accent-foreground hover:bg-accent-foreground/10 transition-all border border-border">
-                <span className="truncate">{modeLabel} Mode</span>
-                <ChevronDown className="h-4 w-4 shrink-0" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-52 p-1 bg-background border-border" side="top" align="start">
-              <p className="text-xs font-medium text-muted-foreground px-3 py-2">Switch Mode</p>
-              {availableModes.map((m) => (
-                <button
-                  key={m}
-                  onClick={() => handleModeSwitch(m)}
-                  className={cn(
-                    "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
-                    m === mode
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted text-foreground"
-                  )}
-                >
-                  {MODE_LABELS[m]} Mode
-                </button>
-              ))}
-            </PopoverContent>
-          </Popover>
+          <div className="relative">
+            <button
+              onClick={() => setIsModeSwitcherOpen(!isModeSwitcherOpen)}
+              className="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-lg text-sm font-medium text-accent-foreground hover:bg-accent-foreground/10 transition-all border border-border"
+            >
+              <span className="truncate">{modeLabel}</span>
+              <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", isModeSwitcherOpen && "rotate-180")} />
+            </button>
+            {isModeSwitcherOpen && (
+              <div className="absolute bottom-full left-0 right-0 mb-1 bg-background border border-border rounded-lg shadow-lg p-1 z-50">
+                <p className="text-xs font-medium text-muted-foreground px-3 py-2">Switch Mode</p>
+                {availableModes.map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => handleModeSwitch(m)}
+                    className={cn(
+                      "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
+                      m === mode
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted text-foreground"
+                    )}
+                  >
+                    {MODE_LABELS[m]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         <button

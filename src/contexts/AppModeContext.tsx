@@ -20,9 +20,9 @@ const MODE_HIERARCHY: AppMode[] = ["super_admin", "association", "club", "team",
 
 const MODE_LABELS: Record<AppMode, string> = {
   super_admin: "Super Admin",
-  association: "Association",
-  club: "Club",
-  team: "Team",
+  association: "Association Admin",
+  club: "Club Admin",
+  team: "Team Manager",
   player: "Player",
 };
 
