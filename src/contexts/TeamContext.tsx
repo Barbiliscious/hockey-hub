@@ -90,21 +90,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const handleAssociationChange = (id: string) => {
     setSelectedAssociationId(id);
-    const newClubs = clubs.filter(c => c.association_id === id);
-    const firstClub = newClubs[0];
-    setSelectedClubId(firstClub?.id || "");
-    if (firstClub) {
-      const newTeams = teams.filter(t => t.club_id === firstClub.id);
-      setSelectedTeamId(newTeams[0]?.id || "");
-    } else {
-      setSelectedTeamId("");
-    }
+    setSelectedClubId("");
+    setSelectedTeamId("");
   };
 
   const handleClubChange = (id: string) => {
     setSelectedClubId(id);
-    const newTeams = teams.filter(t => t.club_id === id);
-    setSelectedTeamId(newTeams[0]?.id || "");
+    setSelectedTeamId("");
   };
 
   const selectedAssociation = associations.find(a => a.id === selectedAssociationId);

@@ -87,7 +87,9 @@ const AdminDashboard = () => {
     if (!scopeLoading && isAnyAdmin) {
       fetchStats();
     }
-  }, [scopeLoading, isAnyAdmin, isSuperAdmin, scopedAssociationIds, scopedClubIds, scopedTeamIds]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeLoading, isAnyAdmin, isSuperAdmin, 
+      scopedAssociationIds.join(","), scopedClubIds.join(","), scopedTeamIds.join(",")]);
 
   if (scopeLoading) {
     return (
