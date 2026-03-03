@@ -328,7 +328,7 @@ const AppLayout = () => {
 
             {/* Club Selector - only for modes that need it */}
             {showClubSelector && filteredClubs.length > 0 && (
-              <Select value={selectedClubId} onValueChange={setSelectedClubId}>
+              <Select value={selectedClubId || undefined} onValueChange={setSelectedClubId}>
                 <SelectTrigger className="w-[180px] lg:w-[200px] bg-accent text-accent-foreground border-0 font-medium">
                   <SelectValue placeholder="Select Club" />
                 </SelectTrigger>
@@ -344,7 +344,7 @@ const AppLayout = () => {
 
             {/* Team Selector */}
             {showTeamSelector && filteredTeams.length > 0 && (
-              <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+              <Select value={selectedTeamId || undefined} onValueChange={setSelectedTeamId}>
                 <SelectTrigger className="w-[140px] lg:w-[180px] bg-accent text-accent-foreground border-0 font-medium">
                   <SelectValue placeholder="Select Team" />
                 </SelectTrigger>

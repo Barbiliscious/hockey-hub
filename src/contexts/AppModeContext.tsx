@@ -83,6 +83,11 @@ export function AppModeProvider({ children }: { children: ReactNode }) {
       });
       // Always include player mode
       modesSet.add("player");
+
+      // Super Admin gets access to all modes
+      if (modesSet.has("super_admin")) {
+        MODE_HIERARCHY.forEach((m) => modesSet.add(m));
+      }
       
       const ordered = MODE_HIERARCHY.filter((m) => modesSet.has(m));
       setAvailableModes(ordered);
