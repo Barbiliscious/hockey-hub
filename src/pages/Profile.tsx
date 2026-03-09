@@ -124,6 +124,8 @@ const Profile = () => {
     phone: "",
     suburb: "",
     dateOfBirth: "",
+    gender: "",
+    hockeyVicNumber: "",
     emergencyContact: {
       name: "",
       phone: "",
