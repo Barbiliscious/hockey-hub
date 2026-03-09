@@ -63,6 +63,8 @@ interface ProfileData {
   suburb: string | null;
   date_of_birth: string | null;
   avatar_url: string | null;
+  gender: string | null;
+  hockey_vic_number: string | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
   emergency_contact_relationship: string | null;
