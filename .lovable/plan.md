@@ -1,41 +1,47 @@
 
-## Grampians Hockey — Implementation Plan
 
-### Phase 1: 5-Mode App System ✅ COMPLETE
+# Implement: Redesigned Team Assignment & Form Tweaks
 
-The app supports 5 operational modes (Super Admin, Association, Club, Team, Player) with role-based navigation, mode switching, and localStorage persistence. See `AppModeContext.tsx`.
+Everything from the initial Add Player implementation is already in place. This step applies the redesign discussed in the latest approved plan.
 
-### Phase 2: Data & Import (Current)
+## Changes
 
-| # | Item | Status | Notes |
-|---|------|--------|-------|
-| 1 | Sunraysia Hockey Association setup | ✅ Done | SHA + Koowinda, Wanderers, Riverside, Waratahs (6 teams each) |
-| 2 | Team nicknames column | ✅ Done | `nickname` column added to `teams` table |
-| 3 | Admin Add Player form | ✅ Done | Scoped entry form with gender, HV number, team assignment. Edge function `create-player`. New profile columns. `ScopedTeamSelector` reusable component. |
-| 4 | Bulk player import | 🔲 Todo | Edge function + admin UI to import players from XLSX. Reuses `ScopedTeamSelector`. |
-| 5 | Bulk fixture import | 🔲 Todo | Resolve club+division to team_id, insert into `games`. Reuses `ScopedTeamSelector`. |
-| 6 | Fixture export | 🔲 Todo | Export scoped fixtures to CSV/PDF |
-| 7 | Player exceptions / compliance | 🔲 Todo | `player_exceptions` table, age checks, missing data flags |
+### 1. `src/components/admin/ScopedTeamSelector.tsx`
+Add **Division** as a 4th cascading level between Club and Team Name:
+- Fetch teams with `division` column: `select("id, name, club_id, division")`
+- Add `selectedDivision` state
+- After club is selected, compute distinct divisions from filtered teams
+- After division is selected, filter teams to that division
+- Render as a 4-column grid: Association > Club > Division > Team Name
+- Reset downstream selections on each upstream change
 
-### Phase 3: Competition Features
+### 2. `src/pages/admin/AddPlayer.tsx`
+**Dual-frame team assignment:**
+- **Top Card: "Primary Team"** — one `ScopedTeamSelector`, always `membership_type = PRIMARY`
+- **Bottom Card: "Additional Teams"** — dynamic list of rows, each with its own `ScopedTeamSelector` + type selector (PERMANENT / FILL_IN) + remove button. "Add Team" button appends a new row.
+- Form state changes from single `team_id` to:
+  - `primaryTeamId: string`
+  - `additionalTeams: Array<{ team_id: string, membership_type: "PERMANENT" | "FILL_IN" }>`
+- Change `suburb` field from `<Input>` to `<Textarea>`
+- Submit sends `team_assignments` array to edge function
 
-| # | Item | Status | Notes |
-|---|------|--------|-------|
-| 8 | Seasons + standings | 🔲 Todo | `seasons` table, `season_id` on games, ladder page |
-| 9 | Player statistics | 🔲 Todo | `player_game_stats` table, goals/cards/BOG, leaderboard |
+### 3. `supabase/functions/create-player/index.ts`
+- Change payload from single `team_id + membership_type` to `team_assignments: Array<{ team_id, membership_type }>`
+- Validate at least one PRIMARY assignment
+- Scope-check **each** team_id in the array
+- Insert multiple `team_memberships` rows and one `user_role` (PLAYER) per unique team
 
-### Phase 4: Polish & UX
+### 4. `src/components/profile/PersonalDetailsSection.tsx`
+- Change suburb/address field from `<Input>` to `<Textarea>` when editing
 
-| # | Item | Status | Notes |
-|---|------|--------|-------|
-| 10 | Club branding in player UI | 🔲 Todo | Wire `primary_colour`, `logo_url` etc. into dashboards |
-| 11 | Dark mode toggle | 🔲 Todo | `next-themes` already installed, needs wiring |
-| 12 | Audit log | 🔲 Todo | `audit_log` table for admin action tracking |
+### Files
 
-### Database Structure
+| File | Action |
+|------|--------|
+| `src/components/admin/ScopedTeamSelector.tsx` | Add division as 4th cascading level |
+| `src/pages/admin/AddPlayer.tsx` | Dual-frame Primary + Additional Teams; textarea for address |
+| `supabase/functions/create-player/index.ts` | Accept `team_assignments` array with per-team scope validation |
+| `src/components/profile/PersonalDetailsSection.tsx` | Change address to textarea |
 
-- **Associations**: Hockey Ballarat, Wimmera Hockey Association, Sunraysia Hockey Association
-- **Clubs per association**: 4-6 clubs each, with 6 standard teams per club
-- **Team divisions**: Division 1 Open, Division 1 Women, Under 11, Under 12, Under 14, Under 16
-- **Roles**: SUPER_ADMIN, ASSOCIATION_ADMIN, CLUB_ADMIN, TEAM_MANAGER, COACH, PLAYER
-- **Profile columns**: first_name, last_name, phone, suburb, date_of_birth, gender, hockey_vic_number, emergency contact fields, avatar_url
+No database migrations needed — `division` already exists on `teams`.
+
