@@ -2,7 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Mail, Phone, MapPin, Calendar, AlertCircle, Save } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Mail, Phone, MapPin, Calendar, AlertCircle, Save, User, Hash } from "lucide-react";
 import type { PlayerProfile, EmergencyContact } from "@/lib/mockData";
 
 interface PersonalDetailsSectionProps {
@@ -13,6 +20,8 @@ interface PersonalDetailsSectionProps {
     phone: string;
     suburb: string;
     dateOfBirth: string;
+    gender: string;
+    hockeyVicNumber: string;
     emergencyContact: EmergencyContact;
   };
   onFormChange: (data: Partial<PersonalDetailsSectionProps["formData"]>) => void;
