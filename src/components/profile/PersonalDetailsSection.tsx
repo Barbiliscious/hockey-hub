@@ -101,11 +101,12 @@ export const PersonalDetailsSection = ({
         <div className="space-y-2">
           <Label htmlFor="suburb">Suburb/Address</Label>
           {isEditing ? (
-            <Input
+            <Textarea
               id="suburb"
               value={formData.suburb}
               onChange={(e) => onFormChange({ suburb: e.target.value })}
-              placeholder="Enter your suburb"
+              placeholder="Enter your full address"
+              rows={3}
             />
           ) : (
             <div className="flex items-center gap-2 py-2">
