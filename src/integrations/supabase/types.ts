@@ -458,6 +458,7 @@ export type Database = {
           gender: string | null
           id: string
           name: string
+          nickname: string | null
           updated_at: string
         }
         Insert: {
@@ -468,6 +469,7 @@ export type Database = {
           gender?: string | null
           id?: string
           name: string
+          nickname?: string | null
           updated_at?: string
         }
         Update: {
@@ -478,6 +480,7 @@ export type Database = {
           gender?: string | null
           id?: string
           name?: string
+          nickname?: string | null
           updated_at?: string
         }
         Relationships: [
