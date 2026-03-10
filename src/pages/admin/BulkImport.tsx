@@ -189,6 +189,9 @@ const BulkImport = () => {
           division: String(row["division"] || row["Division"] || row["Comp"] || "").trim(),
           phone: String(row["phone"] || row["Phone"] || "").trim(),
           suburb: String(row["suburb"] || row["Suburb"] || row["Address"] || "").trim(),
+          emergency_contact_name: String(row["emergency_contact_name"] || row["Emergency Contact Name"] || row["EC Name"] || "").trim(),
+          emergency_contact_phone: String(row["emergency_contact_phone"] || row["Emergency Contact Phone"] || row["EC Phone"] || "").trim(),
+          emergency_contact_relationship: String(row["emergency_contact_relationship"] || row["Emergency Contact Relationship"] || row["EC Relationship"] || "").trim(),
         }));
 
         setRows(validateRows(parsed));
