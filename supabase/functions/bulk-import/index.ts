@@ -180,6 +180,9 @@ Deno.serve(async (req) => {
           phone: player.phone || null,
           suburb: player.suburb || null,
           hockey_vic_number: player.hockey_vic_number || null,
+          emergency_contact_name: player.emergency_contact_name || null,
+          emergency_contact_phone: player.emergency_contact_phone || null,
+          emergency_contact_relationship: player.emergency_contact_relationship || null,
         }).eq("id", userId);
 
         // Insert team membership (PRIMARY)

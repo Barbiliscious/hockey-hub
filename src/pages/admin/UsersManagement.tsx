@@ -159,6 +159,46 @@ const UsersManagement = () => {
     ? teams
     : teams.filter((t) => scopedTeamIds.includes(t.id));
 
+  const handleExport = () => {
+    if (filteredUsers.length === 0) return;
+
+    const exportData = filteredUsers.map((user, index) => {
+      const primaryMembership = user.memberships[0];
+      const team = primaryMembership ? teams.find((t) => t.id === primaryMembership.team_id) : undefined;
+      const club = team ? clubs.find((c) => c.id === team.club_id) : undefined;
+
+      // Look up team details for division
+      const fullTeam = team ? teams.find((t) => t.id === team.id) : undefined;
+
+      return {
+        "Registration #": index + 1,
+        "First Name": user.first_name || "",
+        "Last Name": user.last_name || "",
+        "Email": "", // Email not in profiles table
+        "Gender": user.gender || "",
+        "Date of Birth": user.date_of_birth || "",
+        "Hockey Vic Number": user.hockey_vic_number || "",
+        "Phone": user.phone || "",
+        "Suburb": user.suburb || "",
+        "Club": club?.name || "",
+        "Team": team?.name || "",
+        "Division": (fullTeam as any)?.division || "",
+        "Membership Status": primaryMembership?.status || "Unassigned",
+        "Membership Type": primaryMembership?.membership_type || "",
+        "Emergency Contact Name": user.emergency_contact_name || "",
+        "Emergency Contact Phone": user.emergency_contact_phone || "",
+        "Emergency Contact Relationship": user.emergency_contact_relationship || "",
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Players");
+    const today = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `players-export-${today}.xlsx`);
+    toast({ title: "Export Complete", description: `${exportData.length} player(s) exported.` });
+  };
+
   const handleApproveMembership = async (membershipId: string) => {
     const { error } = await supabase.from("team_memberships").update({ status: "APPROVED" }).eq("id", membershipId);
     if (error) {

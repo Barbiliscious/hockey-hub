@@ -343,8 +343,8 @@ const BulkImport = () => {
             )}
           </div>
           <div className="text-xs text-muted-foreground space-y-1">
-            <p>Expected columns: <span className="font-mono">first_name, last_name, email, gender, date_of_birth, hockey_vic_number, club_name, division, phone, suburb</span></p>
-            <p>Also accepts: First Name, Last Name, Email, Gender, DOB, HV Number, Club, Division, Phone, Suburb/Address</p>
+            <p>Expected columns: <span className="font-mono">first_name, last_name, email, gender, date_of_birth, hockey_vic_number, club_name, division, phone, suburb, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship</span></p>
+            <p>Also accepts: First Name, Last Name, Email, Gender, DOB, HV Number, Club, Division, Phone, Suburb/Address, EC Name, EC Phone, EC Relationship</p>
           </div>
         </CardContent>
       </Card>
