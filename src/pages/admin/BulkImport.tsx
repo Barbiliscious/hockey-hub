@@ -46,6 +46,9 @@ interface ParsedRow {
   division: string;
   phone: string;
   suburb: string;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  emergency_contact_relationship: string;
   errors: string[];
   team_id: string | null;
 }
@@ -186,6 +189,9 @@ const BulkImport = () => {
           division: String(row["division"] || row["Division"] || row["Comp"] || "").trim(),
           phone: String(row["phone"] || row["Phone"] || "").trim(),
           suburb: String(row["suburb"] || row["Suburb"] || row["Address"] || "").trim(),
+          emergency_contact_name: String(row["emergency_contact_name"] || row["Emergency Contact Name"] || row["EC Name"] || "").trim(),
+          emergency_contact_phone: String(row["emergency_contact_phone"] || row["Emergency Contact Phone"] || row["EC Phone"] || "").trim(),
+          emergency_contact_relationship: String(row["emergency_contact_relationship"] || row["Emergency Contact Relationship"] || row["EC Relationship"] || "").trim(),
         }));
 
         setRows(validateRows(parsed));
@@ -233,6 +239,9 @@ const BulkImport = () => {
           hockey_vic_number: r.hockey_vic_number || null,
           phone: r.phone || null,
           suburb: r.suburb || null,
+          emergency_contact_name: r.emergency_contact_name || null,
+          emergency_contact_phone: r.emergency_contact_phone || null,
+          emergency_contact_relationship: r.emergency_contact_relationship || null,
           team_id: r.team_id,
           row_number: r.row_number,
         })),
@@ -334,8 +343,8 @@ const BulkImport = () => {
             )}
           </div>
           <div className="text-xs text-muted-foreground space-y-1">
-            <p>Expected columns: <span className="font-mono">first_name, last_name, email, gender, date_of_birth, hockey_vic_number, club_name, division, phone, suburb</span></p>
-            <p>Also accepts: First Name, Last Name, Email, Gender, DOB, HV Number, Club, Division, Phone, Suburb/Address</p>
+            <p>Expected columns: <span className="font-mono">first_name, last_name, email, gender, date_of_birth, hockey_vic_number, club_name, division, phone, suburb, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship</span></p>
+            <p>Also accepts: First Name, Last Name, Email, Gender, DOB, HV Number, Club, Division, Phone, Suburb/Address, EC Name, EC Phone, EC Relationship</p>
           </div>
         </CardContent>
       </Card>

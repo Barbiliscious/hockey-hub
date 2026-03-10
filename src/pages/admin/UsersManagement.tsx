@@ -20,7 +20,8 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
-import { Users, ArrowLeft, Shield, Search, Check, X, UserPlus } from "lucide-react";
+import { Users, ArrowLeft, Shield, Search, Check, X, UserPlus, FileSpreadsheet, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminScope } from "@/hooks/useAdminScope";
@@ -51,7 +52,7 @@ const UsersManagement = () => {
   const { loading: scopeLoading, isSuperAdmin, isAnyAdmin, scopedTeamIds, scopedClubIds, scopedAssociationIds } = useAdminScope();
 
   const [users, setUsers] = useState<UserWithRoles[]>([]);
-  const [teams, setTeams] = useState<{ id: string; name: string; club_id: string }[]>([]);
+  const [teams, setTeams] = useState<{ id: string; name: string; club_id: string; division?: string | null }[]>([]);
   const [clubs, setClubs] = useState<{ id: string; name: string; association_id: string }[]>([]);
   const [associations, setAssociations] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +75,7 @@ const UsersManagement = () => {
 
     // Fetch reference data
     const [teamsRes, clubsRes, assocRes] = await Promise.all([
-      supabase.from("teams").select("id, name, club_id"),
+      supabase.from("teams").select("id, name, club_id, division"),
       supabase.from("clubs").select("id, name, association_id"),
       supabase.from("associations").select("id, name"),
     ]);
@@ -157,6 +158,46 @@ const UsersManagement = () => {
   const availableTeams = isSuperAdmin
     ? teams
     : teams.filter((t) => scopedTeamIds.includes(t.id));
+
+  const handleExport = () => {
+    if (filteredUsers.length === 0) return;
+
+    const exportData = filteredUsers.map((user, index) => {
+      const primaryMembership = user.memberships[0];
+      const team = primaryMembership ? teams.find((t) => t.id === primaryMembership.team_id) : undefined;
+      const club = team ? clubs.find((c) => c.id === team.club_id) : undefined;
+
+      // Look up team details for division
+      const fullTeam = team ? teams.find((t) => t.id === team.id) : undefined;
+
+      return {
+        "Registration #": index + 1,
+        "First Name": user.first_name || "",
+        "Last Name": user.last_name || "",
+        "Email": "", // Email not in profiles table
+        "Gender": user.gender || "",
+        "Date of Birth": user.date_of_birth || "",
+        "Hockey Vic Number": user.hockey_vic_number || "",
+        "Phone": user.phone || "",
+        "Suburb": user.suburb || "",
+        "Club": club?.name || "",
+        "Team": team?.name || "",
+        "Division": (fullTeam as any)?.division || "",
+        "Membership Status": primaryMembership?.status || "Unassigned",
+        "Membership Type": primaryMembership?.membership_type || "",
+        "Emergency Contact Name": user.emergency_contact_name || "",
+        "Emergency Contact Phone": user.emergency_contact_phone || "",
+        "Emergency Contact Relationship": user.emergency_contact_relationship || "",
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Players");
+    const today = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `players-export-${today}.xlsx`);
+    toast({ title: "Export Complete", description: `${exportData.length} player(s) exported.` });
+  };
 
   const handleApproveMembership = async (membershipId: string) => {
     const { error } = await supabase.from("team_memberships").update({ status: "APPROVED" }).eq("id", membershipId);
@@ -270,10 +311,20 @@ const UsersManagement = () => {
           <h1 className="text-3xl font-bold tracking-tight">Users</h1>
           <p className="text-muted-foreground">Manage user profiles, roles, and memberships</p>
         </div>
-        <Button onClick={() => navigate("/admin/add-player")}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Add Player
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate("/admin/bulk-import")}>
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Bulk Import
+          </Button>
+          <Button variant="outline" onClick={handleExport} disabled={filteredUsers.length === 0}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button onClick={() => navigate("/admin/add-player")}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Player
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
