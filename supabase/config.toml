@@ -2,3 +2,6 @@ project_id = "hrfpejoyrtxrfemgchrx"
 
 [functions.create-player]
 verify_jwt = false
+
+[functions.bulk-import]
+verify_jwt = false

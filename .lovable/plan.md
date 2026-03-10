@@ -13,7 +13,7 @@ The app supports 5 operational modes (Super Admin, Association, Club, Team, Play
 | 2 | Team nicknames column | ✅ Done | `nickname` column added to `teams` table |
 | 3 | Admin Add Player form | ✅ Done | Scoped entry form with gender, HV number, team assignment. Edge function `create-player`. New profile columns. `ScopedTeamSelector` reusable component. 4-level cascading selector (Association > Club > Division > Team). Dual-frame Primary + Additional Teams with multi-membership support. |
 | 3b | useAdminScope flickering fix | ✅ Done | Memoized scoped ID arrays to prevent infinite re-render loops |
-| 4 | Bulk player import | 🔲 Todo | Edge function + admin UI to import players from XLSX. Reuses `ScopedTeamSelector`. |
+| 4 | Bulk player import | ✅ Done | Admin page `/admin/bulk-import` with XLSX upload, preview table, validation. Edge function `bulk-import` with mock email generation and scope validation. |
 | 5 | Bulk fixture import | 🔲 Todo | Resolve club+division to team_id, insert into `games`. Reuses `ScopedTeamSelector`. |
 | 6 | Fixture export | 🔲 Todo | Export scoped fixtures to CSV/PDF |
 | 7 | Player exceptions / compliance | 🔲 Todo | `player_exceptions` table, age checks, missing data flags |
