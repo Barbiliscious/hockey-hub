@@ -75,7 +75,7 @@ const UsersManagement = () => {
 
     // Fetch reference data
     const [teamsRes, clubsRes, assocRes] = await Promise.all([
-      supabase.from("teams").select("id, name, club_id"),
+      supabase.from("teams").select("id, name, club_id, division"),
       supabase.from("clubs").select("id, name, association_id"),
       supabase.from("associations").select("id, name"),
     ]);
