@@ -52,7 +52,7 @@ const UsersManagement = () => {
   const { loading: scopeLoading, isSuperAdmin, isAnyAdmin, scopedTeamIds, scopedClubIds, scopedAssociationIds } = useAdminScope();
 
   const [users, setUsers] = useState<UserWithRoles[]>([]);
-  const [teams, setTeams] = useState<{ id: string; name: string; club_id: string }[]>([]);
+  const [teams, setTeams] = useState<{ id: string; name: string; club_id: string; division?: string | null }[]>([]);
   const [clubs, setClubs] = useState<{ id: string; name: string; association_id: string }[]>([]);
   const [associations, setAssociations] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
