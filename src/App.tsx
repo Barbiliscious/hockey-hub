@@ -27,6 +27,7 @@ import ClubsManagement from "./pages/admin/ClubsManagement";
 import TeamsManagement from "./pages/admin/TeamsManagement";
 import UsersManagement from "./pages/admin/UsersManagement";
 import AddPlayer from "./pages/admin/AddPlayer";
+import BulkImport from "./pages/admin/BulkImport";
 
 // Layout
 import AppLayout from "./components/layout/AppLayout";
@@ -79,6 +80,7 @@ const App = () => (
                       <Route path="/admin/teams" element={<TeamsManagement />} />
                       <Route path="/admin/users" element={<UsersManagement />} />
                       <Route path="/admin/add-player" element={<AddPlayer />} />
+                      <Route path="/admin/bulk-import" element={<BulkImport />} />
                     </Route>
                   </Route>
 

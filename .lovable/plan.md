@@ -1,44 +1,42 @@
 
+## Grampians Hockey — Implementation Plan
 
-# Next Step: Bulk Player Import (Phase 2, Item #4)
+### Phase 1: 5-Mode App System ✅ COMPLETE
 
-The flickering fix is done. The next item on the plan is **Bulk Player Import** — an admin page to upload an XLSX/CSV file of players, preview and validate the data, then bulk-create accounts and team memberships.
+The app supports 5 operational modes (Super Admin, Association, Club, Team, Player) with role-based navigation, mode switching, and localStorage persistence. See `AppModeContext.tsx`.
 
-## What gets built
+### Phase 2: Data & Import (Current)
 
-### 1. New dependency
-- Add `xlsx` (SheetJS) for client-side spreadsheet parsing
+| # | Item | Status | Notes |
+|---|------|--------|-------|
+| 1 | Sunraysia Hockey Association setup | ✅ Done | SHA + Koowinda, Wanderers, Riverside, Waratahs (6 teams each) |
+| 2 | Team nicknames column | ✅ Done | `nickname` column added to `teams` table |
+| 3 | Admin Add Player form | ✅ Done | Scoped entry form with gender, HV number, team assignment. Edge function `create-player`. New profile columns. `ScopedTeamSelector` reusable component. 4-level cascading selector (Association > Club > Division > Team). Dual-frame Primary + Additional Teams with multi-membership support. |
+| 3b | useAdminScope flickering fix | ✅ Done | Memoized scoped ID arrays to prevent infinite re-render loops |
+| 4 | Bulk player import | ✅ Done | Admin page `/admin/bulk-import` with XLSX upload, preview table, validation. Edge function `bulk-import` with mock email generation and scope validation. |
+| 5 | Bulk fixture import | 🔲 Todo | Resolve club+division to team_id, insert into `games`. Reuses `ScopedTeamSelector`. |
+| 6 | Fixture export | 🔲 Todo | Export scoped fixtures to CSV/PDF |
+| 7 | Player exceptions / compliance | 🔲 Todo | `player_exceptions` table, age checks, missing data flags |
 
-### 2. New admin page: `src/pages/admin/BulkImport.tsx`
-- `ScopedTeamSelector` at top to set the association/club scope for the import
-- File upload (`.xlsx` / `.csv`) parsed client-side with `xlsx`
-- Preview table showing: Row #, First Name, Last Name, Email, Gender, DOB, HV Number, Club, Division, Status (valid/error)
-- Validation: required fields (first_name, last_name), club+division must resolve to a known team in scope
-- Submit button sends valid rows to edge function
-- Results summary: X created, Y failed with per-row error details
+### Phase 3: Competition Features
 
-### 3. New edge function: `supabase/functions/bulk-import/index.ts`
-- Auth check + scope validation (same pattern as `create-player`)
-- Build lookup map: `(club_name, division)` → `team_id` within the caller's scope
-- For each row:
-  - Generate mock email if none provided (`firstname.lastname@grampianshockey.mock`)
-  - Create auth user via `admin.createUser`
-  - Update profile with all fields
-  - Insert `team_memberships` (PRIMARY) and `user_roles` (PLAYER)
-- Return `{ created: number, errors: Array<{ row: number, error: string }> }`
+| # | Item | Status | Notes |
+|---|------|--------|-------|
+| 8 | Seasons + standings | 🔲 Todo | `seasons` table, `season_id` on games, ladder page |
+| 9 | Player statistics | 🔲 Todo | `player_game_stats` table, goals/cards/BOG, leaderboard |
 
-### 4. Config & routing
-- Add `[functions.bulk-import]` with `verify_jwt = false` to `supabase/config.toml`
-- Add route `/admin/bulk-import` in `App.tsx`
-- Update `plan.md`
+### Phase 4: Polish & UX
 
-## Files
+| # | Item | Status | Notes |
+|---|------|--------|-------|
+| 10 | Club branding in player UI | 🔲 Todo | Wire `primary_colour`, `logo_url` etc. into dashboards |
+| 11 | Dark mode toggle | 🔲 Todo | `next-themes` already installed, needs wiring |
+| 12 | Audit log | 🔲 Todo | `audit_log` table for admin action tracking |
 
-| File | Action |
-|------|--------|
-| `src/pages/admin/BulkImport.tsx` | Create — file upload, preview table, validation, submit |
-| `supabase/functions/bulk-import/index.ts` | Create — bulk account creation with scope validation |
-| `supabase/config.toml` | Add bulk-import function config |
-| `src/App.tsx` | Add route |
-| `.lovable/plan.md` | Mark #4 as done |
+### Database Structure
 
+- **Associations**: Hockey Ballarat, Wimmera Hockey Association, Sunraysia Hockey Association
+- **Clubs per association**: 4-6 clubs each, with 6 standard teams per club
+- **Team divisions**: Division 1 Open, Division 1 Women, Under 11, Under 12, Under 14, Under 16
+- **Roles**: SUPER_ADMIN, ASSOCIATION_ADMIN, CLUB_ADMIN, TEAM_MANAGER, COACH, PLAYER
+- **Profile columns**: first_name, last_name, phone, suburb, date_of_birth, gender, hockey_vic_number, emergency contact fields, avatar_url
