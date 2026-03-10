@@ -27,6 +27,7 @@ import ClubsManagement from "./pages/admin/ClubsManagement";
 import TeamsManagement from "./pages/admin/TeamsManagement";
 import UsersManagement from "./pages/admin/UsersManagement";
 import AddPlayer from "./pages/admin/AddPlayer";
+import BulkImport from "./pages/admin/BulkImport";
 
 // Layout
 import AppLayout from "./components/layout/AppLayout";
